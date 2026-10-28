@@ -20,6 +20,7 @@ export interface UserRow {
   tenant_id: string | null;
   email: string;
   status: string;
+  email_verified_at: Date | null;
 }
 
 /** 角色主类型映射(审计 actor_type 用) */
@@ -46,7 +47,7 @@ export class RbacService {
     const row = await withSystemTx(this.db, async (tx) =>
       await tx
         .selectFrom('users')
-        .select(['id', 'tenant_id', 'email', 'status'])
+        .select(['id', 'tenant_id', 'email', 'status', 'email_verified_at'])
         .where('id', '=', userId)
         .executeTakeFirst(),
     );
@@ -57,7 +58,7 @@ export class RbacService {
     const row = await withSystemTx(this.db, async (tx) =>
       await tx
         .selectFrom('users')
-        .select(['id', 'tenant_id', 'email', 'status'])
+        .select(['id', 'tenant_id', 'email', 'status', 'email_verified_at'])
         .where('email', '=', email)
         .orderBy('created_at')
         .executeTakeFirst(),

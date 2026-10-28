@@ -96,6 +96,8 @@ export class MemberService {
           password_hash: passwordHash,
           status: 'active',
           last_login_at: null,
+          // 由租户所有者创建, 视为已验证(邮箱归属由邀请人担保)
+          email_verified_at: now,
           created_at: now,
           updated_at: now,
           deleted_at: null,

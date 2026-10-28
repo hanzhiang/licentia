@@ -21,7 +21,8 @@
     "kysely": "^0.27.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@lp/notify": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0"

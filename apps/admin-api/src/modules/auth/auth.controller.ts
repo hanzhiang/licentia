@@ -21,6 +21,15 @@ const RegisterSchema = z.object({
   developer_name: z.string().min(1).max(100),
 });
 
+const VerifyEmailSchema = z.object({
+  email: z.string().email().max(200),
+  code: z.string().regex(/^\d{6}$/, '验证码为 6 位数字'),
+});
+
+const ResendSchema = z.object({
+  email: z.string().email().max(200),
+});
+
 function clientIp(req: FastifyRequest): string | null {
   const fwd = req.headers['x-forwarded-for'];
   if (typeof fwd === 'string' && fwd.length > 0) return fwd.split(',')[0]!.trim();
@@ -60,6 +69,26 @@ export class AuthController {
       clientIp(req),
     );
     void reply.code(201).send({ data: result });
+  }
+
+  @Post('verify-email')
+  async verifyEmail(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
+    const parsed = VerifyEmailSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new AppError('REQ_INVALID', '请求参数不合法', {
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+    const result = await this.service.verifyEmail(parsed.data.email, parsed.data.code, clientIp(req));
+    void reply.code(200).send({ data: result });
+  }
+
+  @Post('resend-verification')
+  async resendVerification(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
+    const parsed = ResendSchema.safeParse(req.body);
+    if (!parsed.success) throw new AppError('REQ_INVALID', '请求参数不合法');
+    const data = await this.service.resendVerification(parsed.data.email);
+    void reply.code(200).send({ data });
   }
 
   @Post('refresh')

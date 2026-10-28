@@ -39,13 +39,13 @@ async function main(): Promise<void> {
       const passwordHash = hashPassword(password);
       if (existing.rows.length === 0) {
         await client.query(
-          "insert into users (id, tenant_id, email, password_hash, status) values ($1,null,$2,$3,'active')",
+          "insert into users (id, tenant_id, email, password_hash, status, email_verified_at) values ($1,null,$2,$3,'active',now())",
           [u.id, u.email, passwordHash],
         );
         console.log(`seed: created ${u.email} (${u.role})`);
       } else {
         await client.query(
-          "update users set password_hash = $2, status = 'active', tenant_id = null where email = $1",
+          "update users set password_hash = $2, status = 'active', tenant_id = null, email_verified_at = coalesce(email_verified_at, now()) where email = $1",
           [u.email, passwordHash],
         );
         console.log(`seed: updated ${u.email}`);

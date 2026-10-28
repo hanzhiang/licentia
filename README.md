@@ -45,7 +45,8 @@ Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在
 | **API Key**：明文一次性、常数时间比较、7 天重叠轮换、按秒限流 | `packages/db` + `apps/open-api` |
 | **Webhook**：Outbox 扇出 → HMAC 签名投递 → 指数退避 → 死信 → 端点熔断 | `apps/worker` |
 | **通知投递**：SMTP / 短信网关，pending → sent 真实状态机 | `packages/notify` |
-| **平台/开发者分层**：平台只管理开发者账号（列表/停用/恢复），无租户业务权限；开发者自助注册即开通 | `apps/admin-api/modules/platform` | 两级边界实测 |
+| **平台/开发者分层**：平台只管理开发者账号（列表/停用/恢复），无租户业务权限 | `apps/admin-api/modules/platform` | 两级边界实测 |
+| **开发者注册安全**：邮箱验证码（未验证不能登录）、单码最多试错 5 次、按 IP 5 次/小时 + 按邮箱 3 次/小时限流、重发 60s 冷却 | `apps/admin-api/modules/auth` | register e2e 5/5 |
 | **团队成员管理**：开发者自己加人、改角色、停用（停用即吊销 refresh） | `apps/admin-api/modules/member` | 接口实测 |
 | **自助门户**：手机验证码登录、组织授权激活、自助换机 | `apps/portal-api` |
 | **产品/策略/渠道**：创建 + 改名 + 启停；停用后不能再发码，已发出的授权不受影响；策略改动只影响新码 | `apps/admin-api/modules/catalog` | catalog e2e 3/3 |
@@ -93,7 +94,8 @@ pnpm dev                                            # 拉起全部服务 + 管�
 - 管理后台：<http://localhost:5173>
 - 渠道工作台：<http://localhost:5174>
 - 平台管理员：`admin@lp.local` / `Passw0rd!demo`（`pnpm seed:users` 创建）
-- 开发者账号：在登录页「立即注册」自助开通，或用 `pnpm seed:demo` 生成演示账号
+- 开发者账号：登录页「立即注册」→ 填邮箱验证码完成开通（未配置 SMTP 时验证码会直接显示在页面上）
+- 演示账号：`pnpm seed:demo`
 
 系统是两级结构，两层互相看不到对方的业务数据：
 

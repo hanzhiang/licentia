@@ -6,6 +6,7 @@ import { uuidv7, withSystemTx, type LpDb } from '@lp/db';
 import { hashPassword, signJwt, verifyPassword } from '@lp/auth';
 import { writeAudit } from '@lp/audit';
 import { getConfig } from '@lp/config';
+import { buildChannels } from '@lp/notify';
 import type { Redis } from '@lp/cache';
 import { DB } from '../../db.module';
 import { REDIS } from '../../redis.module';
@@ -30,6 +31,17 @@ export interface ProfileResult {
 }
 
 const MAX_FAILS = 5;
+
+// 注册限流: 同一 IP 每小时最多 5 次, 同一邮箱每小时最多 3 次
+const REG_IP_LIMIT = 5;
+const REG_EMAIL_LIMIT = 3;
+const REG_WINDOW_S = 3600;
+/** 验证码有效期 */
+const VERIFY_TTL_S = 900;
+/** 重发验证码冷却 */
+const RESEND_COOLDOWN_S = 60;
+/** 同一验证码最多试错次数, 防暴力猜码 */
+const VERIFY_MAX_ATTEMPTS = 5;
 const LOCK_MS = 15 * 60 * 1000;
 /** 失败计数窗口: 超过该时长未再失败则清零 */
 const FAIL_WINDOW_S = 15 * 60;
@@ -42,10 +54,19 @@ const FAIL_WINDOW_S = 15 * 60;
  * 攻击者只要把请求分散到 N 个实例, 每个实例都只见 1/N 的失败次数.
  * Redis 不可用时降级为进程内计数(单副本仍有效), 并打日志提示.
  */
+export interface RegisterResult {
+  email: string;
+  requires_verification: true;
+  /** 仅在非生产环境返回, 便于本地/演示环境自测 */
+  dev_code?: string;
+}
+
 @Injectable()
 export class AuthService {
   /** Redis 不可用时的兜底(仅单副本有意义) */
   private readonly localLocks = new Map<string, { fails: number; until: number }>();
+  /** 注册限流的进程内兜底: key → 窗口起点与计数 */
+  private readonly localReg = new Map<string, { start: number; count: number }>();
 
   constructor(
     @Inject(DB) private readonly db: Kysely<LpDb>,
@@ -157,7 +178,7 @@ export class AuthService {
     const user = await withSystemTx(this.db, (tx) =>
       tx
         .selectFrom('users')
-        .select(['id', 'tenant_id', 'email', 'status', 'password_hash'])
+        .select(['id', 'tenant_id', 'email', 'status', 'password_hash', 'email_verified_at'])
         .where('email', '=', email)
         .orderBy('created_at')
         .executeTakeFirst(),
@@ -171,6 +192,9 @@ export class AuthService {
       await this.recordFailure(email);
       await this.auditLogin(user?.id ?? email, !!user, ip);
       throw new AppError('AUTH_REQUIRED', '邮箱或密码错误');
+    }
+    if (!user.email_verified_at) {
+      throw new AppError('EMAIL_NOT_VERIFIED', '邮箱尚未验证, 请先完成验证或重发验证码');
     }
     await this.clearFailures(email);
     await this.assertTenantActive(user.tenant_id);
@@ -226,17 +250,19 @@ export class AuthService {
   }
 
   /**
-   * 开发者自助注册(立即开通): 一次事务内创建 租户 + 账号 + developer_owner 角色。
-   * 租户即"开发者账号"——注册者立刻拥有自己的应用、授权码与成员空间，
-   * 与平台层完全隔离(平台只看得到这个租户的存在与用量汇总)。
+   * 开发者自助注册: 创建 租户 + 账号 + developer_owner，并发一封验证码邮件。
+   *
+   * 账号在邮箱验证前不能登录 —— 否则脚本可以批量刷出大量「能用的空租户」。
+   * 限流落在 Redis(跨副本共享)，Redis 不可用时退化为进程内计数。
    */
   async register(
     input: { email: string; password: string; developerName: string },
     ip: string | null,
-  ): Promise<LoginResult> {
-    const cfg = getConfig();
+  ): Promise<RegisterResult> {
     const email = input.email.trim().toLowerCase();
     const name = input.developerName.trim();
+
+    await this.enforceRegisterLimit(email, ip);
 
     const existing = await withSystemTx(this.db, (tx) =>
       tx.selectFrom('users').select('id').where('email', '=', email).executeTakeFirst(),
@@ -273,6 +299,7 @@ export class AuthService {
           password_hash: passwordHash,
           status: 'active',
           last_login_at: null,
+          email_verified_at: null,
           created_at: new Date(),
           updated_at: new Date(),
           deleted_at: null,
@@ -289,25 +316,192 @@ export class AuthService {
         action: 'auth.register',
         resourceType: 'tenant',
         resourceId: tenantId,
-        detail: { email, developer_name: name, tenant_code: tenantCode },
+        detail: { email, developer_name: name, tenant_code: tenantCode, verified: false },
         ip,
       });
     });
 
-    const roles = ['developer_owner'];
-    const permissions = await this.rbac.permsOf(userId);
+    const code = await this.issueVerifyCode(email);
+    const dev = getConfig().NODE_ENV !== 'prod';
+    return { email, requires_verification: true, ...(dev ? { dev_code: code } : {}) };
+  }
+
+  /** 校验验证码并激活账号; 成功后直接返回会话, 用户无需再登一次 */
+  async verifyEmail(emailInput: string, code: string, ip: string | null): Promise<LoginResult> {
+    const email = emailInput.trim().toLowerCase();
+    const tag = this.emailTag(email);
+    const key = `lp:reg:code:${tag}`;
+
+    const stored = this.redis ? await this.redis.get(key).catch(() => null) : null;
+    if (stored === null) throw new AppError('VERIFY_CODE_INVALID', '验证码错误或已过期');
+
+    if (stored !== code) {
+      // 记录试错次数, 超过上限直接作废验证码, 避免 6 位码被穷举
+      const tryKey = `lp:reg:try:${tag}`;
+      const attempts = this.redis ? await this.redis.incr(tryKey).catch(() => 99) : 99;
+      if (attempts === 1 && this.redis) await this.redis.expire(tryKey, VERIFY_TTL_S);
+      if (attempts >= VERIFY_MAX_ATTEMPTS && this.redis) {
+        await this.redis.del(key).catch(() => undefined);
+        await this.redis.del(tryKey).catch(() => undefined);
+      }
+      throw new AppError('VERIFY_CODE_INVALID', '验证码错误或已过期');
+    }
+
+    const user = await withSystemTx(this.db, (tx) =>
+      tx
+        .selectFrom('users')
+        .select(['id', 'tenant_id', 'email', 'status', 'email_verified_at'])
+        .where('email', '=', email)
+        .orderBy('created_at')
+        .executeTakeFirst(),
+    );
+    if (!user) throw new AppError('VERIFY_CODE_INVALID', '验证码错误或已过期');
+    if (user.status !== 'active') throw new AppError('AUTH_REQUIRED', '账号已停用');
+
+    await withSystemTx(this.db, async (tx) => {
+      await tx
+        .updateTable('users')
+        .set({ email_verified_at: new Date(), updated_at: new Date() })
+        .where('id', '=', user.id)
+        .execute();
+      await writeAudit(tx, {
+        tenantId: user.tenant_id,
+        actorType: 'developer_owner',
+        actorId: user.id,
+        action: 'auth.email_verified',
+        resourceType: 'user',
+        resourceId: user.id,
+        detail: { email },
+        ip,
+      });
+    });
+
+    if (this.redis) {
+      await this.redis.del(key).catch(() => undefined);
+      await this.redis.del(`lp:reg:try:${tag}`).catch(() => undefined);
+    }
+
+    const roles = await this.rbac.rolesOf(user.id);
+    const permissions = await this.rbac.permsOf(user.id);
+    return this.issueSession(
+      { id: user.id, email: user.email, tenant_id: user.tenant_id },
+      roles,
+      permissions,
+      primaryActorType(roles),
+      ip,
+      'auth.login',
+    );
+  }
+
+  /** 重发验证码: 60 秒冷却, 避免把注册接口当成邮件轰炸机 */
+  async resendVerification(emailInput: string): Promise<{ sent: true; dev_code?: string }> {
+    const email = emailInput.trim().toLowerCase();
+    const tag = this.emailTag(email);
+    if (this.redis) {
+      const ok = await this.redis
+        .set(`lp:reg:cd:${tag}`, '1', 'EX', RESEND_COOLDOWN_S, 'NX')
+        .catch(() => 'OK');
+      if (!ok) throw new AppError('RATE_LIMITED', '请求过于频繁, 请稍后再试');
+    }
+    const user = await withSystemTx(this.db, (tx) =>
+      tx
+        .selectFrom('users')
+        .select(['id', 'email_verified_at', 'status'])
+        .where('email', '=', email)
+        .executeTakeFirst(),
+    );
+    // 不区分「账号不存在」与「已激活」, 避免用这个接口枚举邮箱
+    if (!user || user.status !== 'active' || user.email_verified_at) {
+      return { sent: true };
+    }
+    const code = await this.issueVerifyCode(email);
+    const dev = getConfig().NODE_ENV !== 'prod';
+    return { sent: true, ...(dev ? { dev_code: code } : {}) };
+  }
+
+  /** 注册限流: IP 与邮箱两条独立计数, 任一超限即拒绝 */
+  private async enforceRegisterLimit(email: string, ip: string | null): Promise<void> {
+    const pairs: Array<[string, number]> = [
+      [`lp:reg:ip:${this.emailTag(ip ?? 'unknown')}`, REG_IP_LIMIT],
+      [`lp:reg:email:${this.emailTag(email)}`, REG_EMAIL_LIMIT],
+    ];
+    if (this.redis) {
+      try {
+        for (const [key, limit] of pairs) {
+          const n = await this.redis.incr(key);
+          if (n === 1) await this.redis.expire(key, REG_WINDOW_S);
+          if (n > limit) throw new AppError('RATE_LIMITED', '注册过于频繁, 请稍后再试');
+        }
+        return;
+      } catch (e) {
+        if (e instanceof AppError) throw e;
+        console.warn('[auth] Redis 注册限流不可用, 降级为进程内计数:', (e as Error).message);
+      }
+    }
+    const now = Date.now();
+    for (const [key, limit] of pairs) {
+      const rec = this.localReg.get(key);
+      if (!rec || now - rec.start > REG_WINDOW_S * 1000) {
+        this.localReg.set(key, { start: now, count: 1 });
+        continue;
+      }
+      rec.count += 1;
+      if (rec.count > limit) throw new AppError('RATE_LIMITED', '注册过于频繁, 请稍后再试');
+    }
+  }
+
+  /** 生成并发送验证码(无邮件通道时只写日志, 非生产环境随响应下发) */
+  private async issueVerifyCode(email: string): Promise<string> {
+    const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+    const tag = this.emailTag(email);
+    if (this.redis) {
+      await this.redis.set(`lp:reg:code:${tag}`, code, 'EX', VERIFY_TTL_S).catch(() => undefined);
+      await this.redis.del(`lp:reg:try:${tag}`).catch(() => undefined);
+    }
+    const channel = buildChannels().email;
+    if (channel) {
+      await channel
+        .send(
+          { to: email },
+          {
+            subject: '【Licentia】开发者账号邮箱验证',
+            text: [
+              '你好，',
+              '',
+              `你的验证码是 ${code}，15 分钟内有效。`,
+              '若这不是你本人的操作，请忽略本邮件。',
+            ].join('\n'),
+          },
+        )
+        .catch(() => undefined);
+    } else {
+      console.warn(`[auth] 未配置邮件通道, 验证码未发送: ${email}`);
+    }
+    return code;
+  }
+
+  /** 签发会话(access + refresh), verifyEmail 验证通过后复用 */
+  private async issueSession(
+    user: { id: string; email: string; tenant_id: string | null },
+    roles: string[],
+    permissions: string[],
+    actorType: string,
+    ip: string | null,
+    action: string,
+  ): Promise<LoginResult> {
+    const cfg = getConfig();
     const accessToken = signJwt(
-      { sub: userId, tid: tenantId, typ: 'access' },
+      { sub: user.id, tid: user.tenant_id, typ: 'access' },
       cfg.AUTH_JWT_TTL_S,
       this.jwtCfg(),
     );
     const refreshToken = crypto.randomBytes(48).toString('base64url');
-    await withSystemTx(this.db, (tx) =>
-      tx
+    await withSystemTx(this.db, async (tx) => {
+      await tx
         .insertInto('refresh_tokens')
         .values({
           id: uuidv7(),
-          user_id: userId,
+          user_id: user.id,
           token_hash: crypto.createHash('sha256').update(refreshToken, 'utf8').digest(),
           expires_at: new Date(Date.now() + cfg.AUTH_REFRESH_TTL_D * 86_400_000),
           revoked_at: null,
@@ -315,19 +509,28 @@ export class AuthService {
           ip,
           ua: null,
         })
-        .execute(),
-    );
-
+        .execute();
+      await writeAudit(tx, {
+        tenantId: user.tenant_id,
+        actorType: actorType as 'developer_owner',
+        actorId: user.id,
+        action,
+        resourceType: 'user',
+        resourceId: user.id,
+        detail: { email: user.email, roles },
+        ip,
+      });
+    });
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
       expires_in: cfg.AUTH_JWT_TTL_S,
       user: {
-        id: userId,
-        email,
-        tenant_id: tenantId,
+        id: user.id,
+        email: user.email,
+        tenant_id: user.tenant_id,
         roles,
-        actor_type: 'developer_owner',
+        actor_type: actorType,
         permissions,
       },
     };
@@ -350,6 +553,9 @@ export class AuthService {
     const user = await this.rbac.userById(row.user_id);
     if (!user || user.status !== 'active') {
       throw new AppError('AUTH_REQUIRED', '用户已停用');
+    }
+    if (!user.email_verified_at) {
+      throw new AppError('EMAIL_NOT_VERIFIED', '邮箱尚未验证');
     }
     await this.assertTenantActive(user.tenant_id);
     const roles = await this.rbac.rolesOf(user.id);

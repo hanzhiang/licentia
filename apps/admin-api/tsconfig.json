@@ -1,18 +1,48 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.spec.ts"
+  ],
   "references": [
-    { "path": "../../packages/audit" },
-    { "path": "../../packages/auth" },
-    { "path": "../../packages/cache" },
-    { "path": "../../packages/config" },
-    { "path": "../../packages/domain" },
-    { "path": "../../packages/keygen" },
-    { "path": "../../packages/db" },
-    { "path": "../../packages/http" },
-    { "path": "../../packages/idempotency" },
-    { "path": "../../packages/events" }
+    {
+      "path": "../../packages/audit"
+    },
+    {
+      "path": "../../packages/auth"
+    },
+    {
+      "path": "../../packages/cache"
+    },
+    {
+      "path": "../../packages/config"
+    },
+    {
+      "path": "../../packages/domain"
+    },
+    {
+      "path": "../../packages/keygen"
+    },
+    {
+      "path": "../../packages/db"
+    },
+    {
+      "path": "../../packages/http"
+    },
+    {
+      "path": "../../packages/idempotency"
+    },
+    {
+      "path": "../../packages/events"
+    },
+    {
+      "path": "../../packages/notify"
+    }
   ]
 }

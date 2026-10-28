@@ -207,6 +207,8 @@ export interface UsersRow {
   password_hash: string | null;
   status: string;
   last_login_at: Date | null;
+  /** 开发者自助注册的账号在邮箱验证前为空, 此时不允许登录 */
+  email_verified_at: Date | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;

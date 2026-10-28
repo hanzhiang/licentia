@@ -114,6 +114,7 @@ export async function seedDemoFixtures(url: string, password = 'Passw0rd!demo'):
             password_hash: passwordHash,
             status: 'active',
             last_login_at: null,
+            email_verified_at: new Date(),
             created_at: new Date(),
             updated_at: new Date(),
             deleted_at: null,
@@ -123,6 +124,7 @@ export async function seedDemoFixtures(url: string, password = 'Passw0rd!demo'):
               tenant_id: TENANT,
               password_hash: passwordHash,
               status: 'active',
+              email_verified_at: new Date(),
               deleted_at: null,
             }),
           )
