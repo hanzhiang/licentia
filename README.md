@@ -1,7 +1,13 @@
 # Licentia
 
 > **多租户软件授权与许可管理平台**
-> Multi-tenant software licensing & entitlement platform
+> **Multi-tenant software licensing & entitlement platform**
+
+[中文](#中文) · [English](#english)
+
+---
+
+# 中文
 
 Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在设备上激活，客户端定期心跳续验，
 断网时靠离线签名许可继续工作；到期、续费、吊销、换机都有明确的状态机和审计留痕。
@@ -10,8 +16,6 @@ Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在
 能对账、能追溯、出事能恢复。
 
 名字取自拉丁语 *licentia*（许可、授权）。
-
----
 
 ## 它解决什么问题
 
@@ -24,11 +28,9 @@ Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在
 | 客户断网还能用吗 | Ed25519 离线许可，带时钟回拨守卫和离线窗口 |
 | 怎么防止一个码装十台机器 | 设备数/席位数/并发数三种限制，按设备或按用户计 |
 | 到期了怎么提醒 | 30/7/1 天三级提醒，邮件或短信真实投递，失败退避到死信 |
-| 渠道商怎么只管自己的码 | RBAC 角色 + 门户自助 |
+| 渠道商怎么只管自己的码 | RBAC 角色 + 独立渠道工作台 |
 | 谁在什么时候改了什么 | 哈希链审计，可独立验链 |
 | 数据丢了怎么办 | pg_dump 备份 + 一键恢复演练，校验行数/迁移/授权/审计链四项 |
-
----
 
 ## 核心能力
 
@@ -49,8 +51,6 @@ Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在
 | **TS SDK**：零依赖，激活/心跳/离线验签/Webhook 验签 | `sdks/ts` |
 | **存量迁移**：旧 SQLite 库 dry-run、幂等导入、旧码兜底 | `apps/tools` |
 | **备份恢复演练**：角色、授权、分区行数、审计链四维校验 | `apps/tools/backup.ts` |
-
----
 
 ## 架构
 
@@ -77,8 +77,6 @@ Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在
 
 更完整的架构评估见 [架构审查报告](docs/architecture/review/2026-10-28-license-platform-codebase-architecture.html)。
 
----
-
 ## 快速开始
 
 ```bash
@@ -104,18 +102,14 @@ pnpm dev                                            # 拉起全部服务 + 管�
 
 详细上线流程见 [交付与运维手册](docs/OPERATIONS.md)。
 
----
-
 ## 测试
 
 ```bash
-pnpm test        # 单元 + 集成 60 项（Vault 未启动时自动跳过）
-pnpm test:e2e    # 端到端 42 项（真实 PostgreSQL）
-pnpm smoke       # HTTP 全链路 13 步：登录 → RBAC → 发码 → 激活 → 心跳 → 吊销 → 验链
+pnpm test         # 单元 + 集成 60 项（Vault 未启动时自动跳过）
+pnpm test:e2e     # 端到端 42 项（真实 PostgreSQL）
+pnpm smoke        # HTTP 全链路 13 步：登录 → RBAC → 发码 → 激活 → 心跳 → 吊销 → 验链
 pnpm backup:drill # 备份 → 建临时库 → 恢复 → 比对 → 验审计链 → 清理
 ```
-
----
 
 ## API 速查
 
@@ -137,8 +131,6 @@ POST /portal/v1/activations/:id/release           门户令牌，月配额
 
 统一错误格式：`{ "error": { "code", "message", "details", "request_id" } }`
 
----
-
 ## 目录结构
 
 ```
@@ -156,8 +148,6 @@ partner-web/    渠道工作台
 db/migrations/  6 个迁移，线性可回滚
 ```
 
----
-
 ## 已知限制
 
 - 应用进程目前直接跑在宿主机上，**没有应用镜像**，部署不可复现
@@ -167,8 +157,6 @@ db/migrations/  6 个迁移，线性可回滚
 - JWT 私钥默认落在本机 `data/keys`，多副本需共享卷或改 KMS
 
 这些是已知且记录在案的取舍，不是意外。
-
----
 
 ## 许可
 
@@ -182,8 +170,173 @@ db/migrations/  6 个迁移，线性可回滚
 
 > 注意：由于限制商业使用，本协议不属于 OSI 定义的开源许可，属于"源码可见"（source-available）。
 
+## 作者
+
+**Rylan** · <rylanx@126.com>
+
 ---
 
-## 作者
+# English
+
+Licentia issues the "keys" for commercial software: hand a license code to a customer, they activate
+it on a device, the client re-validates with a periodic heartbeat, and keeps working offline through a
+signed offline license. Expiry, renewal, revocation, and device transfer all follow an explicit state
+machine with an auditable trail.
+
+It is built for teams **selling software to schools, institutions, or enterprises** — where you need
+per-customer data isolation, channel distribution, reconciliation, traceability, and a recovery plan.
+
+The name comes from Latin *licentia* (license, permission).
+
+## What it solves
+
+| Problem | Approach |
+|---|---|
+| How to issue codes that can't be guessed | 31-symbol alphabet + Damm check digit (79.3 bits), idempotent batch issuing |
+| Customer replaced their machine | Device fingerprint binding + monthly self-service transfer quota + instant kick on unbind |
+| Can it work offline? | Ed25519 offline licenses with clock-rollback guard and offline window |
+| Preventing one code on ten machines | Device / seat / concurrency limits, counted per device or per user |
+| Reminding customers before expiry | 30/7/1-day warnings, real email/SMS delivery, retry down to dead-letter |
+| Channel partners seeing only their own codes | RBAC roles + a dedicated partner workbench |
+| Who changed what, and when | Hash-chained audit log, independently verifiable |
+| What if data is lost | `pg_dump` backups + one-command restore drill validating rows, migrations, grants, and the audit chain |
+
+## Capabilities
+
+| Capability | Location |
+|---|---|
+| **Multi-tenant isolation** — enforced by PostgreSQL RLS, connection role is NOBYPASSRLS | `db/migrations`, `packages/db` |
+| **License lifecycle** — issue → activate → heartbeat → renew → revoke, exhaustive state machine | `packages/domain` |
+| **Code format** — 31-symbol alphabet, Damm check digit, confusable-character normalization | `packages/keygen` |
+| **Offline licenses** — JWS EdDSA compact signing, dual-kid rotation with a parallel verification window | `packages/signer` |
+| **IAM / RBAC** — RS256 access tokens, rotatable/revocable refresh, scrypt passwords, Redis-backed login throttling | `apps/admin-api/iam` |
+| **Audit hash chain** — written in the same transaction, advisory lock prevents forking, verification API | `packages/audit` |
+| **API keys** — plaintext shown once, constant-time comparison, 7-day overlapping rotation, per-second rate limit | `packages/db`, `apps/open-api` |
+| **Webhooks** — Outbox fan-out → HMAC-signed delivery → exponential backoff → dead-letter → endpoint circuit breaker | `apps/worker` |
+| **Notification delivery** — SMTP / SMS gateway, honest `pending → sent` state machine | `packages/notify` |
+| **Self-service portal** — phone OTP login, org license activation, self-service device transfer | `apps/portal-api` |
+| **Admin console** — products & policies, issuing, licenses & devices, customers, reports, audit, API keys, webhooks | `web/` |
+| **Partner workbench** — separate frontend for channel accounts | `partner-web/` |
+| **TypeScript SDK** — zero dependencies; activation, heartbeat, offline verification, webhook verification | `sdks/ts` |
+| **Legacy migration** — dry-run against an old SQLite database, idempotent import, fallback for old code formats | `apps/tools` |
+| **Backup & restore drill** — validates roles, grants, partition row counts, and the audit chain | `apps/tools/backup.ts` |
+
+## Architecture
+
+```
+Callers                          Processes (no inter-process calls)   Shared stores
+─────────────────────────────────────────────────────────────────────────────────────
+Admin          ── console 5173 ──▶ admin-api  3001 ─┐
+Channel        ── workbench 5174 ─▶         ─────────┤
+End customer   ── portal    ──────▶ portal-api 3004 ─┤──▶ PostgreSQL 55432
+Business sys   ── API key  ──────▶ open-api   3003 ─┤    (28 tables + RLS + partitioning)
+Client SDK     ── code/token ────▶ client-api 3002 ─┤
+                                   worker        ──┴──▶ Redis / Vault
+                                   (expiry scan, outbox, delivery, reminders)
+```
+
+**Key trade-offs**
+
+- **A shared database instead of service decomposition.** For single-host delivery, five processes
+  share one PostgreSQL and tenant isolation is enforced by database RLS rather than by application
+  discipline. The cost is boundary coupling; the benefit is transactional consistency and simple ops.
+- **Events are written in the same transaction as business data** (Outbox pattern), then published
+  asynchronously by the worker — no "write succeeded but the event was lost".
+- **Write endpoints are idempotent.** Issuing, renewal, and revocation require an idempotency key;
+  replaying the same key with the same body returns the original response.
+- **Audit is independently verifiable.** Each record is chained by hash; anyone can recompute the
+  chain to prove nothing was tampered with.
+
+A fuller architecture assessment is in the
+[architecture review](docs/architecture/review/2026-10-28-license-platform-codebase-architecture.html).
+
+## Quick start
+
+```bash
+pnpm install
+docker compose -f deploy/docker-compose.yml up -d   # PostgreSQL 55432 + Redis + Vault
+pnpm db:migrate                                     # schema + seed data + permissions
+pnpm seed:users                                     # seed accounts
+pnpm dev                                            # all services + admin console
+```
+
+- Admin console: <http://localhost:5173>
+- Partner workbench: <http://localhost:5174>
+- Default account: `admin@demo.local` / `Passw0rd!demo`
+
+See the [operations handbook](docs/OPERATIONS.md) for the full deployment checklist.
+
+## Testing
+
+```bash
+pnpm test         # 60 unit/integration tests (Vault tests skip when unavailable)
+pnpm test:e2e     # 42 end-to-end tests against a real PostgreSQL
+pnpm smoke        # 13-step HTTP walkthrough: login → RBAC → issue → activate → heartbeat → revoke → verify chain
+pnpm backup:drill # backup → temp database → restore → compare → verify audit chain → clean up
+```
+
+## API summary
+
+```
+POST /admin/v1/auth/login|refresh|logout          anonymous
+POST /admin/v1/batches                            license:issue    idempotency key required
+GET  /admin/v1/licenses[/:id]                     license:read
+POST /admin/v1/licenses/:id/renew                 license:renew    idempotency key
+POST /admin/v1/licenses/:id/revoke                license:revoke:approve
+GET  /admin/v1/audit-events[/verify]              audit:read
+POST /admin/v1/webhook-endpoints[/:id/reset-breaker]  webhook:write
+POST /client/v1/activate|heartbeat                license code / client token
+POST /open/v1/validate                            API key + validate scope
+GET  /.well-known/jwks.json                       public
+POST /portal/v1/auth/otp/request|verify           anonymous
+POST /portal/v1/licenses/activate-org             portal token
+POST /portal/v1/activations/:id/release           portal token, monthly quota
+```
+
+Uniform error shape: `{ "error": { "code", "message", "details", "request_id" } }`
+
+## Project layout
+
+```
+apps/
+  admin-api/    operations: IAM, issuing, licenses, reports, webhooks
+  client-api/   client-facing: activation, heartbeat, JWKS
+  open-api/     open API: license validation for business systems
+  portal-api/   self-service portal for end customers
+  worker/       background: expiry scan, outbox, delivery, reminders
+  tools/        legacy migration, backup & restore drill
+packages/       13 shared packages (domain / db / signer / audit / notify …)
+sdks/ts/        zero-dependency TypeScript SDK
+web/            admin console (Vue 3 + Element Plus)
+partner-web/    partner workbench
+db/migrations/  6 linear, reversible migrations
+```
+
+## Known limitations
+
+- Application processes run directly on the host — **no application images**, deployments are not reproducible
+- The worker is single-process and single-instance, **with no health probe**: a single point of failure for all async work
+- The database is a single instance with no high availability
+- Channel accounts do not yet have channel-level data isolation (see the architecture review)
+- JWT private keys default to a local `data/keys` directory; running multiple replicas needs a shared volume or a KMS
+
+These are deliberate, documented trade-offs rather than oversights.
+
+## License
+
+**Free for noncommercial use. Commercial use requires a license.**
+
+Licensed under the [Licentia Source-Available License 1.0](LICENSE). Personal study, research,
+teaching, and use by charitable, educational, public research, public health or safety, environmental,
+and government institutions for public-interest purposes are permitted. **Any commercial use is
+prohibited** — paid products or services, bundling into a paid offering, or revenue-generating
+internal use by a for-profit organization.
+
+For commercial licensing: <rylanx@126.com>
+
+> Because commercial use is restricted, this is **not** an OSI-approved open source license. It is
+> source-available.
+
+## Author
 
 **Rylan** · <rylanx@126.com>
