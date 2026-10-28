@@ -11,7 +11,7 @@
         </el-menu-item-group>
         <el-menu-item-group v-if="isDeveloper" title="我的应用">
           <el-menu-item v-if="auth.can('license:read')" index="/licenses">授权码</el-menu-item>
-          <el-menu-item v-if="auth.can('product:write')" index="/catalog">产品与策略</el-menu-item>
+          <el-menu-item v-if="canCatalog" index="/catalog">产品与渠道</el-menu-item>
           <el-menu-item v-if="auth.can('license:issue')" index="/batches">批量发码</el-menu-item>
           <el-menu-item v-if="auth.can('end_customer:write')" index="/customers">终端客户</el-menu-item>
           <el-menu-item v-if="auth.can('member:read')" index="/members">团队成员</el-menu-item>
@@ -51,6 +51,12 @@ const router = useRouter();
 // 平台账号没有租户上下文, 只看开发者账号; 开发者才看自己的应用与授权
 const isDeveloper = computed(
   () => !auth.can('platform:developer:read') && !!auth.user?.tenant_id,
+);
+
+// 产品、策略、渠道分开授权, 任一项可写就进同一个配置页
+const canCatalog = computed(
+  () =>
+    auth.can('product:write') || auth.can('policy:write') || auth.can('channel:write'),
 );
 
 async function refreshProfile(): Promise<void> {

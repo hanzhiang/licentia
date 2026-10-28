@@ -13,7 +13,12 @@ const router = createRouter({
         { path: 'developers', component: () => import('./views/Developers.vue'), meta: { perm: 'platform:developer:read' } },
         // 开发者层: 自己的应用、授权码、成员
         { path: 'licenses', component: () => import('./views/Licenses.vue'), meta: { perm: 'license:read' } },
-        { path: 'catalog', component: () => import('./views/Catalog.vue'), meta: { perm: 'product:write' } },
+        {
+          path: 'catalog',
+          component: () => import('./views/Catalog.vue'),
+          // 产品/策略/渠道分开授权: 有任意一项写权限就能进这个页面
+          meta: { permsAny: ['product:write', 'policy:write', 'channel:write'] },
+        },
         { path: 'batches', component: () => import('./views/Batches.vue'), meta: { perm: 'license:issue' } },
         { path: 'customers', component: () => import('./views/EndCustomers.vue'), meta: { perm: 'end_customer:write' } },
         { path: 'members', component: () => import('./views/Members.vue'), meta: { perm: 'member:read' } },
@@ -64,13 +69,14 @@ router.beforeEach((to) => {
   }
   if (to.path === '/') return landingPath();
 
+  const permissions = storedPermissions();
+  // 老会话没有 permissions, 先放行并由 Layout 调 /auth/me 刷新; 后端仍会强制鉴权
+  const known = permissions.length > 0 && !permissions.includes('*');
   const perm = to.meta.perm;
-  if (typeof perm === 'string') {
-    const permissions = storedPermissions();
-    // 老会话没有 permissions, 先放行并由 Layout 调 /auth/me 刷新; 后端仍会强制鉴权
-    if (permissions.length > 0 && !permissions.includes('*') && !permissions.includes(perm)) {
-      return landingPath();
-    }
+  if (known && typeof perm === 'string' && !permissions.includes(perm)) return landingPath();
+  const permsAny = to.meta.permsAny;
+  if (known && Array.isArray(permsAny) && !permsAny.some((p) => permissions.includes(p))) {
+    return landingPath();
   }
   return true;
 });

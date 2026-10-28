@@ -4,7 +4,12 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { Kysely } from 'kysely';
-import { errBatchNotFound, errPolicyNotFound, errReqInvalid } from '@lp/domain';
+import {
+  errBatchNotFound,
+  errBatchTooLarge,
+  errPolicyNotFound,
+  errReqInvalid,
+} from '@lp/domain';
 import {
   encryptAead,
   generateCode,
@@ -28,7 +33,9 @@ export interface IssueResultBody {
     status: string;
     issued_count: number;
     failed_count: number;
-    csv_path: string | null;
+    /** 导出地址(需 license:issue); 不再返回服务器本地路径 */
+    export_url: string | null;
+    /** 明文码仅在小批量(<=100)时随响应返回 */
     codes?: string[];
   };
 }
@@ -64,6 +71,12 @@ export class BatchService {
     }
     if (cmd.quantity > cfg.BATCH_MAX_QUANTITY) {
       throw errReqInvalid(`quantity 超出单批上限 ${cfg.BATCH_MAX_QUANTITY}`);
+    }
+    // 发码是同步路径: 超过阈值会把 HTTP 请求拖到超时, 明确要求分批而不是静默挂住
+    if (cmd.quantity > cfg.BATCH_SYNC_THRESHOLD) {
+      throw errBatchTooLarge(
+        `单批最多 ${cfg.BATCH_SYNC_THRESHOLD} 个; ${cmd.quantity} 个请拆成多批提交`,
+      );
     }
 
     return withIdempotency<IssueResultBody>(
@@ -170,7 +183,7 @@ export class BatchService {
         }
 
         const status = issued === cmd.quantity ? 'completed' : 'partially_failed';
-        const csvPath = status === 'completed' ? await this.writeCsv(tenantId, batchId) : null;
+        const csvKey = status === 'completed' ? await this.writeCsv(tenantId, batchId) : null;
 
         await withTenantTx(this.db, tenantId, (tx) =>
           tx
@@ -180,7 +193,7 @@ export class BatchService {
               issued_count: issued,
               failed_count: cmd.quantity - issued,
               completed_at: new Date(),
-              csv_object_key: csvPath,
+              csv_object_key: csvKey,
             })
             .where('id', '=', batchId)
             .execute(),
@@ -209,7 +222,7 @@ export class BatchService {
           status,
           issued_count: issued,
           failed_count: cmd.quantity - issued,
-          csv_path: csvPath,
+          export_url: status === 'completed' ? `/admin/v1/batches/${batchId}/export` : null,
         };
         // 骨架便利: 小批量直接随响应返回明文码; 生产路径走 CSV 导出(§4.1 步骤5)
         if (cmd.quantity <= 100) {
@@ -314,7 +327,11 @@ export class BatchService {
     });
   }
 
-  /** CSV 导出(骨架: 本地文件; 生产: 流式写对象存储, 见设计 §4.1 步骤5) */
+  /**
+   * 落盘一份 CSV(骨架期本地文件; 生产换对象存储, 见设计 §4.1 步骤5)。
+   * 返回的是**逻辑 key** 而不是宿主绝对路径: 绝对路径写进数据库既不可移植,
+   * 也会在接口响应里泄露服务器目录结构。
+   */
   private async writeCsv(tenantId: string, batchId: string): Promise<string> {
     const cfg = getConfig();
     const dir = path.resolve(cfg.EXPORT_DIR);

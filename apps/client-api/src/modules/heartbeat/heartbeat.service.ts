@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Kysely } from 'kysely';
-import { AppError, errAuthRequired } from '@lp/domain';
+import { AppError, errAuthRequired, errSeatConcurrency } from '@lp/domain';
 import { hmacCode } from '@lp/keygen';
 import { LpDb, setBypassRls, setTenantGuc, withSystemTx } from '@lp/db';
 import { generateClientToken, hashClientToken } from '@lp/auth';
@@ -109,17 +109,47 @@ export class HeartbeatService {
         .execute();
 
       // 席位/浮动并发在线计数(设计文档 §12): Redis ZSET 滑动窗, score=last_seen_ms
-      // 组织许可按 user_id 计席位(HMAC 后成员), 个人许可按激活记录
+      // 组织许可按 user_id 计席位(HMAC 后成员), 个人许可按激活记录。
+      // 策略里的 seat_limit / concurrency_limit 在这里**真正生效**——此前只是
+      // 写进离线许可的元数据, 服务端从不校验, 等于摆设。
       if (this.redis) {
+        // 在线窗口取心跳间隔: 超过一个心跳周期没上报的成员不再占席位
+        const windowMs = Math.max(lic.heartbeat_hours, 1) * 3_600_000;
+        const seatKey = `lp:seats:${lic.id}`;
+        const concKey = `lp:conc:${lic.id}`;
+        const seatMember = context?.userId
+          ? hmacCode(cfg.FINGERPRINT_PEPPER, `user:${context.userId}`).toString('base64url')
+          : act.id;
+        const nowMs = Date.now();
         try {
-          const nowMs = Date.now().toString();
-          const seatMember = context?.userId
-            ? hmacCode(cfg.FINGERPRINT_PEPPER, `user:${context.userId}`).toString('base64url')
-            : act.id;
-          await this.redis.zadd(`lp:seats:${lic.id}`, nowMs, seatMember);
-          await this.redis.zadd(`lp:conc:${lic.id}`, nowMs, act.id);
-        } catch {
-          /* Redis 不可用时席位计数由 DB last_seen 兜底 */
+          // 先清窗口外的条目, 否则历史成员会一直占着席位
+          await this.redis.zremrangebyscore(seatKey, 0, nowMs - windowMs);
+          await this.redis.zremrangebyscore(concKey, 0, nowMs - windowMs);
+
+          if (lic.seat_limit !== null) {
+            const already = await this.redis.zscore(seatKey, seatMember);
+            const used = await this.redis.zcard(seatKey);
+            if (already === null && used >= lic.seat_limit) {
+              throw errSeatConcurrency(`席位已满(${lic.seat_limit} 个)`);
+            }
+          }
+          if (lic.concurrency_limit !== null) {
+            const already = await this.redis.zscore(concKey, act.id);
+            const used = await this.redis.zcard(concKey);
+            if (already === null && used >= lic.concurrency_limit) {
+              throw errSeatConcurrency(`并发已满(${lic.concurrency_limit} 个)`);
+            }
+          }
+
+          await this.redis.zadd(seatKey, nowMs, seatMember);
+          await this.redis.zadd(concKey, nowMs, act.id);
+          // 没有新心跳时 key 自然过期, 避免许可删除后残留
+          await this.redis.pexpire(seatKey, windowMs);
+          await this.redis.pexpire(concKey, windowMs);
+        } catch (e) {
+          // 限额必须真的拒绝; 仅 Redis 自身故障时降级放行(否则抖一下会踢掉所有客户端)
+          if (e instanceof AppError) throw e;
+          console.warn('[heartbeat] 席位/并发计数不可用:', (e as Error).message);
         }
       }
 

@@ -116,6 +116,7 @@ export const errRenewWindow = () => new AppError('LIC_RENEW_WINDOW_EXCEEDED');
 export const errIdempotencyKeyRequired = () => new AppError('IDEMPOTENCY_KEY_REQUIRED');
 export const errIdempotencyConflict = (m?: string) => new AppError('IDEMPOTENCY_CONFLICT', m);
 export const errIdempotencyInProgress = () => new AppError('IDEMPOTENCY_IN_PROGRESS');
+export const errSeatConcurrency = (m?: string) => new AppError('SEAT_CONCURRENCY_LIMIT', m);
 export const errBatchTooLarge = (m?: string) => new AppError('BATCH_TOO_LARGE', m);
 export const errBatchNotFound = () => new AppError('BATCH_NOT_FOUND');
 export const errPolicyNotFound = () => new AppError('POLICY_NOT_FOUND');

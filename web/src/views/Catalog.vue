@@ -327,7 +327,10 @@ interface Channel {
   status: string;
 }
 
-const tab = ref('policies');
+// 只有渠道权限的角色(运营/渠道)默认落在渠道页, 而不是空白的产品页
+const tab = ref(
+  auth.can('product:write') || auth.can('policy:write') ? 'policies' : 'channels',
+);
 const loading = ref(false);
 const saving = ref(false);
 const productDialog = ref(false);
