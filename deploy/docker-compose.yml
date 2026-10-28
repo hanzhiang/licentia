@@ -56,5 +56,81 @@ services:
       ALLOW_PLAINTEXT_LISTENER: "yes"
     profiles: ["kafka"]
 
+  # ===== 应用进程(profile: app) =====
+  # 五个服务共用一个镜像, 由 command 区分; 与基础设施同网络, 用服务名互访。
+  admin-api: &app
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.app
+    command: ["node", "apps/admin-api/dist/main.js"]
+    environment: &app-env
+      NODE_ENV: prod
+      DATABASE_URL: postgresql://lp_app:${DB_PASSWORD:-lp}@postgres:5432/lp
+      REDIS_URL: redis://redis:6379
+      VAULT_ADDR: http://vault:8200
+      PORT_ADMIN: 3001
+      CODE_HMAC_KEY: ${CODE_HMAC_KEY:-dev-code-hmac-key-change-me}
+      CODE_ENC_KEY: ${CODE_ENC_KEY:-dev-code-enc-key-change-me}
+      FINGERPRINT_PEPPER: ${FINGERPRINT_PEPPER:-dev-fp-pepper}
+      WEBHOOK_ENC_KEY: ${WEBHOOK_ENC_KEY:-dev-webhook-enc-key-change-me}
+      NOTIFY_ADDR_ENC_KEY: ${NOTIFY_ADDR_ENC_KEY:-dev-notify-addr-enc-key-change-me}
+      AUTH_JWT_KEYS_DIR: /app/data/keys
+      NOTIFY_CONSOLE_FALLBACK: ${NOTIFY_CONSOLE_FALLBACK:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMS_GATEWAY_URL: ${SMS_GATEWAY_URL:-}
+    volumes:
+      - lp_jwt_keys:/app/data/keys
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  client-api:
+    <<: *app
+    command: ["node", "apps/client-api/dist/main.js"]
+    ports:
+      - "3002:3002"
+
+  open-api:
+    <<: *app
+    command: ["node", "apps/open-api/dist/main.js"]
+    ports:
+      - "3003:3003"
+
+  portal-api:
+    <<: *app
+    command: ["node", "apps/portal-api/dist/main.js"]
+    ports:
+      - "3004:3004"
+
+  worker:
+    <<: *app
+    command: ["node", "apps/worker/dist/main.js"]
+    ports:
+      - "3005:3005"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3005/healthz >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    ports:
+      - "8080:80"
+    depends_on:
+      - admin-api
+    restart: unless-stopped
+
 volumes:
   lp_pgdata:
+  lp_jwt_keys:

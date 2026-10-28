@@ -89,6 +89,7 @@ const EnvSchema = z.object({
   PORT_CLIENT: z.coerce.number().int().default(3002),
   PORT_OPEN: z.coerce.number().int().default(3003),
   PORT_PORTAL: z.coerce.number().int().default(3004),
+  PORT_WORKER: z.coerce.number().int().default(3005),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 

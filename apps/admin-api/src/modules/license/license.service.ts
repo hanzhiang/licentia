@@ -34,11 +34,12 @@ export class LicenseService {
     @Optional() @Inject(REDIS) private readonly redis?: Redis | null,
   ) {}
 
-  async get(tenantId: string, licenseId: string) {
+  async get(tenantId: string, licenseId: string, channelId?: string | null) {
     const lic = await withTenantTx(this.db, tenantId, (tx) =>
       tx.selectFrom('licenses').selectAll().where('id', '=', licenseId).executeTakeFirst(),
     );
-    if (!lic) throw errLicNotFound();
+    // 渠道账号访问他渠道的码: 与不存在一样处理, 不泄露该码存在
+    if (!lic || (channelId && lic.channel_id !== channelId)) throw errLicNotFound();
     return {
       id: lic.id,
       code_masked: maskCode(lic.code.replace(/-/g, '')),
@@ -59,7 +60,13 @@ export class LicenseService {
     };
   }
 
-  async list(tenantId: string, opts: { status?: string; limit?: number }) {
+  /**
+   * channelId 非空时只返回该渠道的授权码 —— 渠道账号看不到其他渠道发了多少码。
+   */
+  async list(
+    tenantId: string,
+    opts: { status?: string; limit?: number; channelId?: string | null },
+  ) {
     const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
     const rows = await withTenantTx(this.db, tenantId, (tx) => {
       let q = tx
@@ -68,6 +75,7 @@ export class LicenseService {
         .orderBy('created_at', 'desc')
         .limit(limit);
       if (opts.status) q = q.where('status', '=', opts.status as LicenseStatus);
+      if (opts.channelId) q = q.where('channel_id', '=', opts.channelId);
       return q.execute();
     });
     return rows.map((r) => ({

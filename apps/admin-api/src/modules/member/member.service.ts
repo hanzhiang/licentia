@@ -23,6 +23,9 @@ export interface MemberView {
   email: string;
   status: 'active' | 'disabled';
   roles: string[];
+  /** 渠道账号绑定的渠道; 非渠道账号为 null */
+  channel_id: string | null;
+  channel_name: string | null;
   created_at: string;
   last_login_at: string | null;
 }
@@ -39,7 +42,7 @@ export class MemberService {
     return withTenantTx(this.db, tenantId, async (tx) => {
       const users = await tx
         .selectFrom('users')
-        .select(['id', 'email', 'status', 'created_at', 'last_login_at'])
+        .select(['id', 'email', 'status', 'channel_id', 'created_at', 'last_login_at'])
         .where('tenant_id', '=', tenantId)
         .where('deleted_at', 'is', null)
         .orderBy('created_at', 'asc')
@@ -57,11 +60,19 @@ export class MemberService {
       for (const r of roles) {
         byUser.set(r.user_id, [...(byUser.get(r.user_id) ?? []), r.role_code]);
       }
+      const channels = await tx
+        .selectFrom('channels')
+        .select(['id', 'name'])
+        .where('tenant_id', '=', tenantId)
+        .execute();
+      const channelName = new Map(channels.map((c) => [c.id, c.name]));
       return users.map((u) => ({
         id: u.id,
         email: u.email,
         status: u.status as MemberView['status'],
         roles: byUser.get(u.id) ?? [],
+        channel_id: u.channel_id ?? null,
+        channel_name: u.channel_id ? (channelName.get(u.channel_id) ?? null) : null,
         created_at: u.created_at.toISOString(),
         last_login_at: u.last_login_at?.toISOString() ?? null,
       }));
@@ -70,7 +81,7 @@ export class MemberService {
 
   async create(
     tenantId: string,
-    cmd: { email: string; password: string; role: MemberRole },
+    cmd: { email: string; password: string; role: MemberRole; channelId?: string | null },
     actor: ActorInfo,
   ): Promise<MemberView> {
     const email = cmd.email.trim().toLowerCase();
@@ -83,6 +94,23 @@ export class MemberService {
         .where('email', '=', email)
         .executeTakeFirst();
       if (dup) throw new AppError('EMAIL_TAKEN', '该邮箱已存在');
+
+      // 渠道角色必须绑定本租户的渠道: 不绑定等同于普通成员, 会看到全租户的授权码
+      let channelId: string | null = null;
+      if (cmd.role === 'developer_partner') {
+        if (!cmd.channelId) throw new AppError('REQ_INVALID', '渠道角色必须指定所属渠道');
+        const ch = await tx
+          .selectFrom('channels')
+          .select('id')
+          .where('id', '=', cmd.channelId)
+          .where('tenant_id', '=', tenantId)
+          .where('deleted_at', 'is', null)
+          .executeTakeFirst();
+        if (!ch) throw new AppError('REQ_INVALID', '渠道不存在');
+        channelId = cmd.channelId;
+      } else if (cmd.channelId) {
+        throw new AppError('REQ_INVALID', '只有渠道角色可以绑定渠道');
+      }
 
       const id = uuidv7();
       const now = new Date();
@@ -98,6 +126,7 @@ export class MemberService {
           last_login_at: null,
           // 由租户所有者创建, 视为已验证(邮箱归属由邀请人担保)
           email_verified_at: now,
+          channel_id: channelId,
           created_at: now,
           updated_at: now,
           deleted_at: null,
@@ -120,9 +149,56 @@ export class MemberService {
         email,
         status: 'active',
         roles: [cmd.role],
+        channel_id: channelId,
+        channel_name: null,
         created_at: now.toISOString(),
         last_login_at: null,
       };
+    });
+  }
+
+  /**
+   * 重置成员密码。重置后吊销该成员的全部 refresh token，
+   * 已有会话在 access token 到期(15min)后失效，避免旧密码持有人继续操作。
+   */
+  async resetPassword(
+    tenantId: string,
+    userId: string,
+    newPassword: string,
+    actor: ActorInfo,
+  ): Promise<void> {
+    const passwordHash = hashPassword(newPassword);
+    await withTenantTx(this.db, tenantId, async (tx) => {
+      const target = await tx
+        .selectFrom('users')
+        .select(['id', 'email'])
+        .where('id', '=', userId)
+        .where('tenant_id', '=', tenantId)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+      if (!target) throw new AppError('REQ_INVALID', '成员不存在');
+      await tx
+        .updateTable('users')
+        .set({ password_hash: passwordHash, updated_at: new Date() })
+        .where('id', '=', userId)
+        .execute();
+      await tx
+        .updateTable('refresh_tokens')
+        .set({ revoked_at: new Date() })
+        .where('user_id', '=', userId)
+        .where('revoked_at', 'is', null)
+        .execute();
+      await writeAudit(tx, {
+        tenantId,
+        actorType: actor.actorType as 'developer_owner',
+        actorId: actor.userId,
+        action: 'member.reset_password',
+        resourceType: 'user',
+        resourceId: userId,
+        detail: { email: target.email },
+        ip: actor.ip ?? null,
+        requestId: actor.requestId ?? null,
+      });
     });
   }
 

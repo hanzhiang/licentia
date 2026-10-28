@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/dist
+data
+.git
+.github
+*.log
+.claude
+docs
+test
+partner-web/dist
+web/dist
+.env
+
+# 宿主的增量构建信息会让容器内 tsc -b 误判为已构建, 必须排除
+**/*.tsbuildinfo

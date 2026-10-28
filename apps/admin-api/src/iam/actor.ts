@@ -7,6 +7,8 @@ export interface ActorInfo {
   actorType: string;
   ip?: string | null;
   requestId?: string | null;
+  /** 渠道账号绑定的渠道; 非渠道账号为 null —— 服务层据此收窄数据范围 */
+  channelId?: string | null;
 }
 
 export function actorFrom(req: FastifyRequest): ActorInfo {
@@ -14,6 +16,7 @@ export function actorFrom(req: FastifyRequest): ActorInfo {
   return {
     userId: u.id,
     actorType: u.actorType,
+    channelId: (req as unknown as { channelId?: string }).channelId ?? null,
     ip: clientIp(req),
     requestId: req.id != null ? String(req.id) : null,
   };

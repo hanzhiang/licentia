@@ -10,6 +10,12 @@ const CreateSchema = z.object({
   email: z.string().email().max(200),
   password: z.string().min(8).max(200),
   role: z.enum(MEMBER_ROLES),
+  /** 仅渠道角色(developer_partner)需要, 且必须是本租户的渠道 */
+  channel_id: z.string().uuid().nullish(),
+});
+
+const ResetPasswordSchema = z.object({
+  password: z.string().min(8).max(200),
 });
 
 const UpdateSchema = z.object({
@@ -45,6 +51,7 @@ export class MemberController {
         email: parsed.data.email,
         password: parsed.data.password,
         role: parsed.data.role as MemberRole,
+        channelId: parsed.data.channel_id ?? null,
       },
       actorFrom(req),
     );
@@ -72,6 +79,20 @@ export class MemberController {
       },
       actorFrom(req),
     );
+    void reply.code(204).send();
+  }
+
+  @Post(':id/reset-password')
+  @RequirePerms('member:write')
+  async resetPassword(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    const parsed = ResetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) throw new AppError('REQ_INVALID', '密码至少 8 位');
+    await this.service.resetPassword(tenantId, id, parsed.data.password, actorFrom(req));
     void reply.code(204).send();
   }
 }

@@ -54,6 +54,14 @@ export class BatchService {
       throw errReqInvalid('缺少 Idempotency-Key 头');
     }
     const cfg = getConfig();
+    const scopedChannel = actor?.channelId ?? null;
+    if (scopedChannel) {
+      // 渠道账号只能往自己的渠道发码: 请求体指定别的渠道或留空都归到本渠道
+      if (cmd.channel_id && cmd.channel_id !== scopedChannel) {
+        throw errReqInvalid('渠道账号只能向自己的渠道发码');
+      }
+      cmd = { ...cmd, channel_id: scopedChannel };
+    }
     if (cmd.quantity > cfg.BATCH_MAX_QUANTITY) {
       throw errReqInvalid(`quantity 超出单批上限 ${cfg.BATCH_MAX_QUANTITY}`);
     }
@@ -215,15 +223,22 @@ export class BatchService {
     );
   }
 
-  async getBatch(tenantId: string, batchId: string) {
+  async getBatch(tenantId: string, batchId: string, channelId?: string | null) {
     const batch = await withTenantTx(this.db, tenantId, (tx) =>
       tx.selectFrom('license_batches').selectAll().where('id', '=', batchId).executeTakeFirst(),
     );
-    if (!batch) throw errReqInvalid('批次不存在');
+    if (!batch || (channelId && batch.channel_id !== channelId)) {
+      throw errReqInvalid('批次不存在');
+    }
     return batch;
   }
 
-  async list(tenantId: string, limit?: number, createdBy?: string): Promise<unknown[]> {
+  async list(
+    tenantId: string,
+    limit?: number,
+    createdBy?: string,
+    channelId?: string | null,
+  ): Promise<unknown[]> {
     const lim = Math.min(Math.max(limit ?? 50, 1), 200);
     return withTenantTx(this.db, tenantId, (tx) => {
       let q = tx
@@ -246,6 +261,7 @@ export class BatchService {
         ])
         .orderBy('created_at', 'desc')
         .limit(lim);
+      if (channelId) q = q.where('channel_id', '=', channelId);
       if (createdBy) q = q.where('created_by', '=', createdBy);
       return q.execute();
     });
@@ -263,10 +279,11 @@ export class BatchService {
     return withTenantTx(this.db, tenantId, async (tx) => {
       const batch = await tx
         .selectFrom('license_batches')
-        .select(['id', 'code', 'created_by'])
+        .select(['id', 'code', 'created_by', 'channel_id'])
         .where('id', '=', batchId)
         .executeTakeFirst();
       if (!batch) throw errBatchNotFound();
+      if (actor.channelId && batch.channel_id !== actor.channelId) throw errBatchNotFound();
       // 开发者所有者可导出本租户全部批次; 运营/渠道只能导出自己创建的
       const canSeeAll = actor.actorType === 'developer_owner';
       if (!canSeeAll && batch.created_by !== actor.userId) {

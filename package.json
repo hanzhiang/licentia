@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:e2e": "cross-env TEST_DATABASE_URL=postgresql://lp_app:lp@localhost:55432/lp vitest run test/e2e apps/tools/src",
     "db:migrate": "tsx packages/db/src/bin/migrate.ts up",
+    "db:partitions": "tsx packages/db/src/bin/partitions.ts",
     "db:rollback": "tsx packages/db/src/bin/migrate.ts down",
     "seed:users": "tsx packages/db/src/bin/seed-users.ts",
     "seed:demo": "tsx packages/db/src/bin/seed-demo.ts",

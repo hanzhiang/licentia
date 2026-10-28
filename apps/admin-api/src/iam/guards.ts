@@ -16,6 +16,8 @@ import { RBAC, RbacService, primaryActorType, type AuthUser } from './iam.module
 export interface RequestWithAuth extends FastifyRequest {
   user?: AuthUser;
   tenantId?: string;
+  /** 渠道账号的渠道范围; 空表示不受渠道限制 */
+  channelId?: string;
 }
 
 export function currentUser(req: FastifyRequest): AuthUser {
@@ -75,9 +77,15 @@ export class JwtAuthGuard implements CanActivate {
     // 租户上下文只来自账号本身。平台账号(tenant_id=null)没有租户上下文，
     // 租户业务接口会被 requireTenantId 直接拒绝——平台后台不干预开发者内部数据。
     (req as RequestWithAuth).tenantId = user.tenant_id ?? undefined;
+    (req as RequestWithAuth).channelId = user.channel_id ?? undefined;
     (req as RequestWithAuth).user = authUser;
     return true;
   }
+}
+
+/** 渠道范围: 绑定了渠道的账号只能操作本渠道数据; null 表示不限制 */
+export function channelScope(req: FastifyRequest): string | null {
+  return (req as RequestWithAuth).channelId ?? null;
 }
 
 export const RequirePerms = (...perms: string[]) => SetMetadata('perms', perms);

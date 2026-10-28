@@ -22,6 +22,9 @@
       <el-table-column label="角色" width="160">
         <template #default="{ row }">{{ roleLabel(row.roles) }}</template>
       </el-table-column>
+      <el-table-column label="渠道" width="140">
+        <template #default="{ row }">{{ row.channel_name ?? '-' }}</template>
+      </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
           <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
@@ -36,6 +39,7 @@
         <template #default="{ row }">
           <template v-if="auth.can('member:write') && row.id !== auth.user?.id">
             <el-button link type="primary" @click="openRole(row)">改角色</el-button>
+            <el-button link type="primary" @click="openReset(row)">重置密码</el-button>
             <el-button
               link
               :type="row.status === 'active' ? 'danger' : 'primary'"
@@ -60,10 +64,31 @@
             <el-option v-for="r in ROLE_OPTIONS" :key="r.value" :label="r.label" :value="r.value" />
           </el-select>
         </el-form-item>
+        <el-form-item v-if="form.role === 'developer_partner'" label="所属渠道">
+          <el-select v-model="form.channelId" placeholder="渠道账号只能看到本渠道的授权码" style="width: 100%">
+            <el-option v-for="c in channels" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createOpen = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="create">创建</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="resetOpen" title="重置密码" width="420px">
+      <el-form label-width="86px">
+        <el-form-item label="成员">
+          <span>{{ current?.email }}</span>
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="newPassword" type="password" show-password placeholder="至少 8 位" />
+        </el-form-item>
+      </el-form>
+      <p class="tip">重置后该成员的所有登录会话会被吊销，需要重新登录。</p>
+      <template #footer>
+        <el-button @click="resetOpen = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="resetPassword">重置</el-button>
       </template>
     </el-dialog>
 
@@ -99,6 +124,8 @@ interface Member {
   email: string;
   status: string;
   roles: string[];
+  channel_id: string | null;
+  channel_name: string | null;
   created_at: string;
   last_login_at: string | null;
 }
@@ -118,7 +145,10 @@ const createOpen = ref(false);
 const roleOpen = ref(false);
 const current = ref<Member | null>(null);
 const role = ref('developer_operator');
-const form = reactive({ email: '', password: '', role: 'developer_operator' });
+const resetOpen = ref(false);
+const newPassword = ref('');
+const channels = ref<Array<{ id: string; name: string }>>([]);
+const form = reactive({ email: '', password: '', role: 'developer_operator', channelId: '' });
 
 function fmt(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString() : '-';
@@ -127,6 +157,15 @@ function fmt(iso: string | null): string {
 function roleLabel(roles: string[]): string {
   const first = roles[0];
   return ROLE_OPTIONS.find((r) => r.value === first)?.label ?? first ?? '-';
+}
+
+async function loadChannels(): Promise<void> {
+  try {
+    const { data } = await api.get('/admin/v1/catalog');
+    channels.value = data.data.channels;
+  } catch {
+    /* 无权限时忽略: 只有渠道角色才需要 */
+  }
 }
 
 async function load(): Promise<void> {
@@ -145,6 +184,7 @@ function openCreate(): void {
   form.email = '';
   form.password = '';
   form.role = 'developer_operator';
+  form.channelId = '';
   createOpen.value = true;
 }
 
@@ -155,6 +195,7 @@ async function create(): Promise<void> {
       email: form.email,
       password: form.password,
       role: form.role,
+      channel_id: form.role === 'developer_partner' ? form.channelId || null : null,
     });
     ElMessage.success('成员已创建');
     createOpen.value = false;
@@ -200,12 +241,43 @@ async function toggleStatus(row: Member): Promise<void> {
   }
 }
 
-onMounted(load);
+function openReset(row: Member): void {
+  current.value = row;
+  newPassword.value = '';
+  resetOpen.value = true;
+}
+
+async function resetPassword(): Promise<void> {
+  if (!current.value) return;
+  if (newPassword.value.length < 8) return ElMessage.error('密码至少 8 位');
+  saving.value = true;
+  try {
+    await api.post(`/admin/v1/members/${current.value.id}/reset-password`, {
+      password: newPassword.value,
+    });
+    ElMessage.success('密码已重置，该成员需重新登录');
+    resetOpen.value = false;
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  } finally {
+    saving.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadChannels();
+  void load();
+});
 </script>
 
 <style scoped>
 .self {
   color: #8e8e93;
   font-size: 12px;
+}
+.tip {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 4px;
 }
 </style>

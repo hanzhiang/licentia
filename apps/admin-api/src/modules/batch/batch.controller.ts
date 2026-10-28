@@ -2,7 +2,14 @@ import { Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestj
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '@lp/domain';
-import { JwtAuthGuard, PermGuard, RequirePerms, requireTenantId, currentUser } from '../../iam/guards';
+import {
+  JwtAuthGuard,
+  PermGuard,
+  RequirePerms,
+  channelScope,
+  requireTenantId,
+  currentUser,
+} from '../../iam/guards';
 import { actorFrom } from '../../iam/actor';
 import { BatchService } from './batch.service';
 import { IssueBatchSchema } from '../dto';
@@ -47,6 +54,7 @@ export class BatchController {
       tenantId,
       limit ? Number(limit) : undefined,
       mine === 'true' ? currentUser(req).id : undefined,
+      channelScope(req),
     );
     void reply.code(200).send({ data });
   }
@@ -75,7 +83,7 @@ export class BatchController {
     @Res() reply: FastifyReply,
   ): Promise<void> {
     const tenantId = requireTenantId(req);
-    const data = await this.service.getBatch(tenantId, id);
+    const data = await this.service.getBatch(tenantId, id, channelScope(req));
     void reply.code(200).send({ data });
   }
 }

@@ -2,7 +2,13 @@ import { Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestj
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '@lp/domain';
-import { JwtAuthGuard, PermGuard, RequirePerms, requireTenantId } from '../../iam/guards';
+import {
+  JwtAuthGuard,
+  PermGuard,
+  RequirePerms,
+  channelScope,
+  requireTenantId,
+} from '../../iam/guards';
 import { actorFrom } from '../../iam/actor';
 import { LicenseService } from './license.service';
 import { RenewSchema, RevokeSchema } from '../dto';
@@ -39,6 +45,7 @@ export class LicenseController {
     const data = await this.service.list(tenantId, {
       status,
       limit: limit ? Number(limit) : undefined,
+      channelId: channelScope(req),
     });
     void reply.code(200).send({ data });
   }
@@ -51,7 +58,7 @@ export class LicenseController {
     @Res() reply: FastifyReply,
   ): Promise<void> {
     const tenantId = requireTenantId(req);
-    const data = await this.service.get(tenantId, id);
+    const data = await this.service.get(tenantId, id, channelScope(req));
     void reply.code(200).send({ data });
   }
 

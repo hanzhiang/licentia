@@ -47,7 +47,10 @@ Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在
 | **通知投递**：SMTP / 短信网关，pending → sent 真实状态机 | `packages/notify` |
 | **平台/开发者分层**：平台只管理开发者账号（列表/停用/恢复），无租户业务权限 | `apps/admin-api/modules/platform` | 两级边界实测 |
 | **开发者注册安全**：邮箱验证码（未验证不能登录）、单码最多试错 5 次、按 IP 5 次/小时 + 按邮箱 3 次/小时限流、重发 60s 冷却 | `apps/admin-api/modules/auth` | register e2e 5/5 |
-| **团队成员管理**：开发者自己加人、改角色、停用（停用即吊销 refresh） | `apps/admin-api/modules/member` | 接口实测 |
+| **团队成员管理**：自己加人、改角色、停用、重置密码（停用/重置即吊销 refresh） | `apps/admin-api/modules/member` | 接口实测 |
+| **渠道数据隔离**：渠道账号绑定一个渠道，只能看本渠道的授权码与批次，跨渠道发码被拒 | `members` + `license` + `batch` | channel e2e 2/2 + 接口实测 |
+| **worker 健康探测**：`/healthz` 报告最近 tick 与错误，`/metrics` 暴露节拍与积压 | `apps/worker/src/health.ts` | 实测 200/503 |
+| **应用镜像**：后端五服务共用 `deploy/Dockerfile.app`，管理后台 `Dockerfile.web` + nginx | `deploy/` | `docker compose --profile app config` 校验 |
 | **自助门户**：手机验证码登录、组织授权激活、自助换机 | `apps/portal-api` |
 | **产品/策略/渠道**：创建 + 改名 + 启停；停用后不能再发码，已发出的授权不受影响；策略改动只影响新码 | `apps/admin-api/modules/catalog` | catalog e2e 3/3 |
 | **管理后台**：产品策略、发码、授权与设备、客户、报表、审计、API Key、Webhook | `web/` |

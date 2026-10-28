@@ -6,6 +6,7 @@ import { buildChannels, deliverPending } from '@lp/notify';
 import { relayOnce } from './relay';
 import { dispatchOnce } from './dispatcher';
 import { notifyOnce } from './notifier';
+import { createHealthState, startHealthServer } from './health';
 
 /**
  * worker(骨架): 5s 节拍串行跑
@@ -20,6 +21,7 @@ import { notifyOnce } from './notifier';
 const cfg = getConfig();
 const db = createDb(cfg.DATABASE_URL);
 const channels = buildChannels();
+const health = createHealthState();
 let stopped = false;
 
 if (!channels.email) {
@@ -68,19 +70,34 @@ async function expireUnactivated(): Promise<void> {
 }
 
 async function tick(): Promise<void> {
+  const startedAt = Date.now();
   try {
     await expireActivated();
     await expireUnactivated();
-    await relayOnce(db);
-    await dispatchOnce(db);
-    await notifyOnce(db);
+    const relayed = await relayOnce(db);
+    const dispatched = await dispatchOnce(db);
+    const notified = await notifyOnce(db);
     const d = await deliverPending({ db, channels });
     if (d.processed > 0) {
       console.log(
         `[notify] processed=${d.processed} sent=${d.sent} retrying=${d.retrying} dead=${d.dead} blocked=${d.blocked}`,
       );
     }
+    health.lastTickAt = Date.now();
+    health.lastTickMs = Date.now() - startedAt;
+    health.ticks += 1;
+    health.lastError = null;
+    health.lastSummary = {
+      relayed,
+      dispatched: dispatched.processed,
+      notified,
+      notify_sent: d.sent,
+      notify_blocked: d.blocked,
+    };
   } catch (e) {
+    // 失败也要记时间: 否则探活会把"一直在报错"显示成"一切正常"
+    health.lastError = (e as Error).message;
+    health.lastTickMs = Date.now() - startedAt;
     console.error('[worker] tick failed:', (e as Error).message);
   }
 }
@@ -98,6 +115,8 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+  // 探活在 shutdown 定义之后启动, 避免闭包引用未初始化的绑定
+  startHealthServer(health, cfg.PORT_WORKER, shutdown);
 }
 
 void main();

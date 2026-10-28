@@ -209,6 +209,8 @@ export interface UsersRow {
   last_login_at: Date | null;
   /** 开发者自助注册的账号在邮箱验证前为空, 此时不允许登录 */
   email_verified_at: Date | null;
+  /** 渠道账号绑定的渠道; 非渠道账号为 null */
+  channel_id: string | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
