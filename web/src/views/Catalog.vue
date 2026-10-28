@@ -23,6 +23,13 @@
           <el-table-column prop="name" label="产品名称" min-width="220" />
           <el-table-column prop="status" label="状态" width="110" />
           <el-table-column prop="id" label="产品 ID" min-width="280" />
+          <el-table-column label="操作" width="90">
+            <template #default="{ row }">
+              <el-button v-if="auth.can('product:write')" link type="primary" @click="openEditProduct(row)">
+                编辑
+              </el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -53,6 +60,13 @@
             <template #default="{ row }">{{ row.features.join(', ') }}</template>
           </el-table-column>
           <el-table-column prop="status" label="状态" width="100" />
+          <el-table-column label="操作" width="90">
+            <template #default="{ row }">
+              <el-button v-if="auth.can('policy:write')" link type="primary" @click="openEditPolicy(row)">
+                编辑
+              </el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -68,6 +82,13 @@
           <el-table-column prop="name" label="渠道名称" min-width="220" />
           <el-table-column prop="status" label="状态" width="110" />
           <el-table-column prop="id" label="渠道 ID" min-width="280" />
+          <el-table-column label="操作" width="90">
+            <template #default="{ row }">
+              <el-button v-if="auth.can('channel:write')" link type="primary" @click="openEditChannel(row)">
+                编辑
+              </el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
     </el-tabs>
@@ -174,6 +195,89 @@
     <template #footer>
       <el-button @click="policyDialog = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="createPolicy">创建策略</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="editProductDialog" title="编辑产品" width="460px">
+    <el-form label-width="92px">
+      <el-form-item label="产品编码">
+        <el-input :model-value="editProduct?.code" disabled />
+      </el-form-item>
+      <el-form-item label="产品名称">
+        <el-input v-model="editProductForm.name" />
+      </el-form-item>
+      <el-form-item label="状态">
+        <el-switch
+          v-model="editProductForm.active"
+          active-text="启用"
+          inactive-text="停用"
+        />
+      </el-form-item>
+      <p class="tip">停用后不能再发新码，已发出的授权不受影响。</p>
+    </el-form>
+    <template #footer>
+      <el-button @click="editProductDialog = false">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="saveProduct">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="editChannelDialog" title="编辑渠道" width="460px">
+    <el-form label-width="92px">
+      <el-form-item label="渠道编码">
+        <el-input :model-value="editChannel?.code" disabled />
+      </el-form-item>
+      <el-form-item label="渠道名称">
+        <el-input v-model="editChannelForm.name" />
+      </el-form-item>
+      <el-form-item label="状态">
+        <el-switch v-model="editChannelForm.active" active-text="启用" inactive-text="停用" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="editChannelDialog = false">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="saveChannel">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="editPolicyDialog" title="编辑策略" width="560px">
+    <el-form label-width="110px">
+      <el-form-item label="策略名称">
+        <el-input v-model="editPolicyForm.name" />
+      </el-form-item>
+      <el-form-item label="状态">
+        <el-switch v-model="editPolicyForm.active" active-text="启用" inactive-text="停用" />
+      </el-form-item>
+      <div class="form-grid">
+        <el-form-item label="有效期(天)">
+          <el-input-number v-model="editPolicyForm.duration_days" :min="1" :max="36500" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="设备数">
+          <el-input-number v-model="editPolicyForm.device_limit" :min="1" :max="100000" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="席位数">
+          <el-input-number v-model="editPolicyForm.seat_limit" :min="1" :max="1000000" :value-on-clear="null" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="并发数">
+          <el-input-number v-model="editPolicyForm.concurrency_limit" :min="1" :max="1000000" :value-on-clear="null" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="离线窗口(天)">
+          <el-input-number v-model="editPolicyForm.offline_window_days" :min="0" :max="90" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="心跳间隔(小时)">
+          <el-input-number v-model="editPolicyForm.heartbeat_hours" :min="1" :max="168" style="width: 100%" />
+        </el-form-item>
+      </div>
+      <el-form-item label="功能权益">
+        <el-input v-model="editPolicyForm.featuresText" placeholder="dorm,leave" />
+      </el-form-item>
+      <el-form-item label="允许续期">
+        <el-switch v-model="editPolicyForm.allow_renewal" />
+      </el-form-item>
+      <p class="tip">改动只影响之后新发的授权码；已发出的码保留发码时的字段快照。</p>
+    </el-form>
+    <template #footer>
+      <el-button @click="editPolicyDialog = false">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="savePolicy">保存</el-button>
     </template>
   </el-dialog>
 </template>
@@ -348,6 +452,124 @@ async function createPolicy(): Promise<void> {
   }
 }
 
+// ---- 编辑: 产品 / 渠道 / 策略 ----
+const editProductDialog = ref(false);
+const editChannelDialog = ref(false);
+const editPolicyDialog = ref(false);
+const editProduct = ref<Product | null>(null);
+const editChannel = ref<Channel | null>(null);
+const editPolicy = ref<Policy | null>(null);
+
+const editProductForm = reactive({ name: '', active: true });
+const editChannelForm = reactive({ name: '', active: true });
+const editPolicyForm = reactive({
+  name: '',
+  active: true,
+  duration_days: 365 as number | null,
+  device_limit: 5,
+  seat_limit: null as number | null,
+  concurrency_limit: null as number | null,
+  offline_window_days: 7,
+  heartbeat_hours: 24,
+  allow_renewal: true,
+  featuresText: '',
+});
+
+function openEditProduct(row: Product): void {
+  editProduct.value = row;
+  editProductForm.name = row.name;
+  editProductForm.active = row.status === 'active';
+  editProductDialog.value = true;
+}
+
+async function saveProduct(): Promise<void> {
+  if (!editProduct.value) return;
+  saving.value = true;
+  try {
+    await api.patch(`/admin/v1/catalog/products/${editProduct.value.id}`, {
+      name: editProductForm.name,
+      status: editProductForm.active ? 'active' : 'disabled',
+    });
+    ElMessage.success('产品已更新');
+    editProductDialog.value = false;
+    await load();
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  } finally {
+    saving.value = false;
+  }
+}
+
+function openEditChannel(row: Channel): void {
+  editChannel.value = row;
+  editChannelForm.name = row.name;
+  editChannelForm.active = row.status === 'active';
+  editChannelDialog.value = true;
+}
+
+async function saveChannel(): Promise<void> {
+  if (!editChannel.value) return;
+  saving.value = true;
+  try {
+    await api.patch(`/admin/v1/catalog/channels/${editChannel.value.id}`, {
+      name: editChannelForm.name,
+      status: editChannelForm.active ? 'active' : 'disabled',
+    });
+    ElMessage.success('渠道已更新');
+    editChannelDialog.value = false;
+    await load();
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  } finally {
+    saving.value = false;
+  }
+}
+
+function openEditPolicy(row: Policy): void {
+  editPolicy.value = row;
+  editPolicyForm.name = row.name;
+  editPolicyForm.active = row.status === 'active';
+  editPolicyForm.duration_days = row.duration_days;
+  editPolicyForm.device_limit = row.device_limit;
+  editPolicyForm.seat_limit = row.seat_limit;
+  editPolicyForm.concurrency_limit = row.concurrency_limit;
+  editPolicyForm.offline_window_days = row.offline_window_days;
+  editPolicyForm.heartbeat_hours = row.heartbeat_hours;
+  editPolicyForm.allow_renewal = row.allow_renewal;
+  editPolicyForm.featuresText = row.features.join(',');
+  editPolicyDialog.value = true;
+}
+
+async function savePolicy(): Promise<void> {
+  if (!editPolicy.value) return;
+  const features = editPolicyForm.featuresText
+    .split(',')
+    .map((f) => f.trim())
+    .filter(Boolean);
+  saving.value = true;
+  try {
+    await api.patch(`/admin/v1/catalog/policies/${editPolicy.value.id}`, {
+      name: editPolicyForm.name,
+      status: editPolicyForm.active ? 'active' : 'disabled',
+      duration_days: editPolicyForm.duration_days,
+      device_limit: editPolicyForm.device_limit,
+      seat_limit: editPolicyForm.seat_limit,
+      concurrency_limit: editPolicyForm.concurrency_limit,
+      offline_window_days: editPolicyForm.offline_window_days,
+      heartbeat_hours: editPolicyForm.heartbeat_hours,
+      allow_renewal: editPolicyForm.allow_renewal,
+      features,
+    });
+    ElMessage.success('策略已更新');
+    editPolicyDialog.value = false;
+    await load();
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  } finally {
+    saving.value = false;
+  }
+}
+
 onMounted(load);
 </script>
 
@@ -362,5 +584,10 @@ onMounted(load);
 @media (max-width: 760px) {
   .form-grid { grid-template-columns: 1fr; }
   .page-head { flex-direction: column; }
+}
+.tip {
+  color: #909399;
+  font-size: 12px;
+  margin: 4px 0 0 92px;
 }
 </style>

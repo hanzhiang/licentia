@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '@lp/domain';
@@ -37,6 +37,36 @@ const PolicySchema = z.object({
   renew_window_days: z.number().int().min(0).max(3650),
   min_version: z.string().max(40).nullable(),
 });
+
+/** 产品/渠道可改名与启停；编码不可变 */
+const UpdateNameStatusSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    status: z.enum(['active', 'disabled']).optional(),
+  })
+  .refine((v) => v.name !== undefined || v.status !== undefined, {
+    message: '至少提供 name 或 status',
+  });
+
+/** 策略可改字段；kind/product_id/code 不可变 */
+const UpdatePolicySchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    status: z.enum(['active', 'disabled']).optional(),
+    duration_days: z.number().int().min(1).max(36500).nullable().optional(),
+    device_limit: z.number().int().min(1).max(100000).optional(),
+    seat_limit: z.number().int().min(1).max(1000000).nullable().optional(),
+    concurrency_limit: z.number().int().min(1).max(1000000).nullable().optional(),
+    features: z.array(z.string().min(1).max(64)).min(1).max(100).optional(),
+    offline_window_days: z.number().int().min(0).max(90).optional(),
+    heartbeat_hours: z.number().int().min(1).max(168).optional(),
+    grace_hours: z.number().int().min(0).max(720).optional(),
+    activate_within_days: z.number().int().min(0).max(3650).optional(),
+    allow_renewal: z.boolean().optional(),
+    renew_window_days: z.number().int().min(0).max(3650).optional(),
+    min_version: z.string().max(40).nullable().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: '至少提供一个字段' });
 
 function parse<T extends z.ZodTypeAny>(schema: T, body: unknown): z.infer<T> {
   const parsed = schema.safeParse(body);
@@ -121,5 +151,67 @@ export class CatalogController {
       actorFrom(req),
     );
     void reply.code(201).send({ data });
+  }
+
+  @Patch('products/:id')
+  @RequirePerms('product:write')
+  async updateProduct(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    const cmd = parse(UpdateNameStatusSchema, body);
+    const data = await this.service.updateProduct(tenantId, id, cmd, actorFrom(req));
+    void reply.code(200).send({ data });
+  }
+
+  @Patch('channels/:id')
+  @RequirePerms('channel:write')
+  async updateChannel(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    const cmd = parse(UpdateNameStatusSchema, body);
+    const data = await this.service.updateChannel(tenantId, id, cmd, actorFrom(req));
+    void reply.code(200).send({ data });
+  }
+
+  @Patch('policies/:id')
+  @RequirePerms('policy:write')
+  async updatePolicy(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    const p = parse(UpdatePolicySchema, body);
+    const data = await this.service.updatePolicy(
+      tenantId,
+      id,
+      {
+        name: p.name,
+        status: p.status,
+        durationDays: p.duration_days,
+        deviceLimit: p.device_limit,
+        seatLimit: p.seat_limit,
+        concurrencyLimit: p.concurrency_limit,
+        features: p.features,
+        offlineWindowDays: p.offline_window_days,
+        heartbeatHours: p.heartbeat_hours,
+        graceHours: p.grace_hours,
+        activateWithinDays: p.activate_within_days,
+        allowRenewal: p.allow_renewal,
+        renewWindowDays: p.renew_window_days,
+        minVersion: p.min_version,
+      },
+      actorFrom(req),
+    );
+    void reply.code(200).send({ data });
   }
 }

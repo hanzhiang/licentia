@@ -48,6 +48,7 @@ Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在
 | **平台/开发者分层**：平台只管理开发者账号（列表/停用/恢复），无租户业务权限；开发者自助注册即开通 | `apps/admin-api/modules/platform` | 两级边界实测 |
 | **团队成员管理**：开发者自己加人、改角色、停用（停用即吊销 refresh） | `apps/admin-api/modules/member` | 接口实测 |
 | **自助门户**：手机验证码登录、组织授权激活、自助换机 | `apps/portal-api` |
+| **产品/策略/渠道**：创建 + 改名 + 启停；停用后不能再发码，已发出的授权不受影响；策略改动只影响新码 | `apps/admin-api/modules/catalog` | catalog e2e 3/3 |
 | **管理后台**：产品策略、发码、授权与设备、客户、报表、审计、API Key、Webhook | `web/` |
 | **渠道工作台**：独立前端，面向渠道发码账号 | `partner-web/` |
 | **TS SDK**：零依赖，激活/心跳/离线验签/Webhook 验签 | `sdks/ts` |

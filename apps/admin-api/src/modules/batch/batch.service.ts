@@ -78,6 +78,7 @@ export class BatchService {
           tx.selectFrom('products').selectAll().where('id', '=', cmd.product_id).executeTakeFirst(),
         );
         if (!product) throw errReqInvalid('产品不存在');
+        if (product.status !== 'active') throw errReqInvalid('产品已停用, 不能发码');
 
         const prefix = normalizePrefix(product.code.slice(0, 4));
         const batchId = uuidv7();

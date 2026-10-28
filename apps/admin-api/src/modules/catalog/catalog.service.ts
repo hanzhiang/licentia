@@ -65,6 +65,24 @@ export interface CreatePolicyInput extends PolicyInput {
   minVersion: string | null;
 }
 
+/** 策略可改字段: kind/product_id/code 不可变 */
+export interface UpdatePolicyInput {
+  name?: string;
+  status?: 'active' | 'disabled';
+  durationDays?: number | null;
+  deviceLimit?: number;
+  seatLimit?: number | null;
+  concurrencyLimit?: number | null;
+  features?: string[];
+  offlineWindowDays?: number;
+  heartbeatHours?: number;
+  graceHours?: number;
+  activateWithinDays?: number;
+  allowRenewal?: boolean;
+  renewWindowDays?: number;
+  minVersion?: string | null;
+}
+
 @Injectable()
 export class CatalogService {
   constructor(@Inject(DB) private readonly db: Kysely<LpDb>) {}
@@ -285,6 +303,157 @@ export class CatalogService {
         resourceType: 'policy',
         resourceId: row.id,
         detail: { code: row.code, kind: cmd.kind },
+        ip: actor.ip ?? null,
+        requestId: actor.requestId ?? null,
+      });
+      return row;
+    });
+  }
+
+  /**
+   * 改产品名/启停。停用只是不再允许发新码，已发出的授权不受影响。
+   * 编码不可改: 它是授权码前缀与产品归属的锚点。
+   */
+  async updateProduct(
+    tenantId: string,
+    id: string,
+    cmd: { name?: string; status?: 'active' | 'disabled' },
+    actor: ActorInfo,
+  ): Promise<ProductView> {
+    return withTenantTx(this.db, tenantId, async (tx) => {
+      const current = await tx
+        .selectFrom('products')
+        .select(['id', 'code', 'name', 'status'])
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+      if (!current) throw errProductNotFound();
+      const row = await tx
+        .updateTable('products')
+        .set({
+          name: cmd.name ?? current.name,
+          status: cmd.status ?? current.status,
+          updated_at: new Date(),
+        })
+        .where('id', '=', id)
+        .returning(['id', 'code', 'name', 'status'])
+        .executeTakeFirstOrThrow();
+      await writeAudit(tx, {
+        tenantId,
+        actorType: actor.actorType as 'developer_owner',
+        actorId: actor.userId,
+        action: 'product.update',
+        resourceType: 'product',
+        resourceId: id,
+        detail: { code: row.code, name: row.name, status: row.status },
+        ip: actor.ip ?? null,
+        requestId: actor.requestId ?? null,
+      });
+      return row;
+    });
+  }
+
+  async updateChannel(
+    tenantId: string,
+    id: string,
+    cmd: { name?: string; status?: 'active' | 'disabled' },
+    actor: ActorInfo,
+  ): Promise<ChannelView> {
+    return withTenantTx(this.db, tenantId, async (tx) => {
+      const current = await tx
+        .selectFrom('channels')
+        .select(['id', 'code', 'name', 'status'])
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+      if (!current) throw errReqInvalid('渠道不存在');
+      const row = await tx
+        .updateTable('channels')
+        .set({
+          name: cmd.name ?? current.name,
+          status: cmd.status ?? current.status,
+        })
+        .where('id', '=', id)
+        .returning(['id', 'code', 'name', 'status'])
+        .executeTakeFirstOrThrow();
+      await writeAudit(tx, {
+        tenantId,
+        actorType: actor.actorType as 'developer_operator',
+        actorId: actor.userId,
+        action: 'channel.update',
+        resourceType: 'channel',
+        resourceId: id,
+        detail: { code: row.code, name: row.name, status: row.status },
+        ip: actor.ip ?? null,
+        requestId: actor.requestId ?? null,
+      });
+      return row;
+    });
+  }
+
+  /**
+   * 改策略。注意: 已发出的授权在发码时复制了策略字段, 这里改的只影响之后新发的码。
+   * kind / product_id / code 不可改 —— 它们决定商业形态与授权码归属, 改了会让历史码语义漂移。
+   */
+  async updatePolicy(
+    tenantId: string,
+    id: string,
+    cmd: UpdatePolicyInput,
+    actor: ActorInfo,
+  ): Promise<{ id: string; code: string; name: string; status: string }> {
+    return withTenantTx(this.db, tenantId, async (tx) => {
+      const current = await tx
+        .selectFrom('policies')
+        .selectAll()
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+      if (!current) throw errReqInvalid('策略不存在');
+
+      const merged = {
+        kind: current.kind as PolicyInput['kind'],
+        durationDays: cmd.durationDays !== undefined ? cmd.durationDays : current.duration_days,
+        deviceLimit: cmd.deviceLimit ?? current.device_limit,
+        seatLimit: cmd.seatLimit !== undefined ? cmd.seatLimit : current.seat_limit,
+        concurrencyLimit:
+          cmd.concurrencyLimit !== undefined ? cmd.concurrencyLimit : current.concurrency_limit,
+        features: cmd.features ?? current.features,
+        offlineWindowDays: cmd.offlineWindowDays ?? current.offline_window_days,
+        allowRenewal: cmd.allowRenewal ?? current.allow_renewal,
+      };
+      const errors = validatePolicy(merged);
+      if (errors.length > 0) throw errReqInvalid(errors.join('; '), { errors });
+
+      const row = await tx
+        .updateTable('policies')
+        .set({
+          name: cmd.name ?? current.name,
+          duration_days: merged.durationDays,
+          device_limit: merged.deviceLimit,
+          seat_limit: merged.seatLimit,
+          concurrency_limit: merged.concurrencyLimit,
+          features: JSON.stringify(merged.features) as unknown as string[],
+          offline_window_days: merged.offlineWindowDays,
+          heartbeat_hours: cmd.heartbeatHours ?? current.heartbeat_hours,
+          grace_hours: cmd.graceHours ?? current.grace_hours,
+          activate_within_days: cmd.activateWithinDays ?? current.activate_within_days,
+          allow_renewal: merged.allowRenewal,
+          renew_window_days: cmd.renewWindowDays ?? current.renew_window_days,
+          min_version: cmd.minVersion !== undefined ? cmd.minVersion : current.min_version,
+          status: cmd.status ?? current.status,
+          updated_at: new Date(),
+        })
+        .where('id', '=', id)
+        .returning(['id', 'code', 'name', 'status'])
+        .executeTakeFirstOrThrow();
+      await writeAudit(tx, {
+        tenantId,
+        actorType: actor.actorType as 'developer_owner',
+        actorId: actor.userId,
+        action: 'policy.update',
+        resourceType: 'policy',
+        resourceId: id,
+        detail: { code: row.code, status: row.status, changes: Object.keys(cmd) },
         ip: actor.ip ?? null,
         requestId: actor.requestId ?? null,
       });

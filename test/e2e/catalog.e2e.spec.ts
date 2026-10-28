@@ -116,4 +116,71 @@ d.sequential('catalog management e2e', () => {
       ),
     ).rejects.toMatchObject({ code: 'REQ_INVALID' });
   });
+
+
+  it('edits product/policy and toggles their status', async () => {
+    const product = await service.createProduct(
+      TENANT,
+      { code: `e2e-edit-${suffix}`, name: '待改名产品' },
+      actor,
+    );
+    const renamed = await service.updateProduct(
+      TENANT,
+      product.id,
+      { name: '已改名产品', status: 'disabled' },
+      actor,
+    );
+    expect(renamed.name).toBe('已改名产品');
+    expect(renamed.status).toBe('disabled');
+
+    const policy = await service.createPolicy(
+      TENANT,
+      {
+        productId: product.id,
+        code: `e2e-edit-policy-${suffix}`,
+        name: '待调整策略',
+        kind: 'standard',
+        durationDays: 365,
+        deviceLimit: 5,
+        seatLimit: null,
+        concurrencyLimit: null,
+        features: ['dorm'],
+        offlineWindowDays: 7,
+        heartbeatHours: 24,
+        graceHours: 72,
+        activateWithinDays: 0,
+        allowRenewal: true,
+        renewWindowDays: 90,
+        minVersion: null,
+      },
+      actor,
+    );
+    const updated = await service.updatePolicy(
+      TENANT,
+      policy.id,
+      { deviceLimit: 10, features: ['dorm', 'leave'] },
+      actor,
+    );
+    expect(updated.id).toBe(policy.id);
+
+    const rows = await withTenantTx(db, TENANT, (tx) =>
+      tx
+        .selectFrom('policies')
+        .select(['device_limit', 'features'])
+        .where('id', '=', policy.id)
+        .executeTakeFirstOrThrow(),
+    );
+    expect(rows.device_limit).toBe(10);
+    expect(rows.features).toEqual(['dorm', 'leave']);
+
+    // 不合法组合必须被拒(trial 时长 > 30 天)
+    await expect(
+      service.updatePolicy(TENANT, policy.id, { features: [] }, actor),
+    ).rejects.toMatchObject({ code: 'REQ_INVALID' });
+
+    await withTenantTx(db, TENANT, async (tx) => {
+      await tx.deleteFrom('policies').where('id', '=', policy.id).execute();
+      await tx.deleteFrom('products').where('id', '=', product.id).execute();
+    });
+  });
 });
