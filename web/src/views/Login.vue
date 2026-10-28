@@ -9,14 +9,14 @@
         <el-form-item>
           <el-input v-model="form.password" type="password" placeholder="密码" show-password />
         </el-form-item>
-        <el-form-item>
-          <el-input v-model="form.tenantId" placeholder="目标租户 ID(仅平台超管填写)" />
-        </el-form-item>
         <el-button type="primary" style="width: 100%" :loading="loading" @click="submit">
           登录
         </el-button>
       </el-form>
-      <p class="hint">演示账号: operator@demo.local / Passw0rd!demo(种子用户, pnpm seed:users)</p>
+      <div class="foot">
+        <span>还没有开发者账号？</span>
+        <router-link to="/register">立即注册</router-link>
+      </div>
     </el-card>
   </div>
 </template>
@@ -24,6 +24,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { landingPath } from '../router';
 import { ElMessage } from 'element-plus';
 import { api, errMsg } from '../api';
 import { useAuth } from '../store';
@@ -31,7 +32,7 @@ import { useAuth } from '../store';
 const router = useRouter();
 const auth = useAuth();
 const loading = ref(false);
-const form = reactive({ email: 'operator@demo.local', password: '', tenantId: '' });
+const form = reactive({ email: '', password: '' });
 
 async function submit(): Promise<void> {
   loading.value = true;
@@ -42,9 +43,9 @@ async function submit(): Promise<void> {
     });
     const d = data.data;
     auth.setLogin(d.access_token, d.refresh_token, d.user);
-    if (form.tenantId.trim()) auth.setTenant(form.tenantId);
     ElMessage.success(`欢迎, ${d.user.email}(${d.user.actor_type})`);
-    void router.push('/licenses');
+    // 平台账号进开发者管理，开发者按权限进自己的第一个页面
+    void router.push(landingPath());
   } catch (e) {
     ElMessage.error(errMsg(e));
   } finally {
@@ -64,8 +65,14 @@ async function submit(): Promise<void> {
 .login-card {
   width: 380px;
 }
-.hint {
+.foot {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 13px;
   color: #909399;
-  font-size: 12px;
+}
+.foot a {
+  color: var(--el-color-primary);
+  text-decoration: none;
 }
 </style>

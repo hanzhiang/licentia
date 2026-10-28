@@ -31,7 +31,8 @@ export function currentUser(req: FastifyRequest): AuthUser {
 export function requireTenantId(req: FastifyRequest): string {
   const tid = (req as RequestWithAuth).tenantId;
   if (!tid) {
-    throw new AppError('REQ_INVALID', '平台账号需通过 X-Tenant-Id 头指定目标租户');
+    // 平台账号没有租户上下文: 平台层只能管理开发者账号，不能操作任何租户业务数据
+    throw new AppError('REQ_INVALID', '该账号不属于任何开发者租户，无法操作授权数据');
   }
   return tid;
 }
@@ -71,13 +72,9 @@ export class JwtAuthGuard implements CanActivate {
       roles,
       actorType: primaryActorType(roles),
     };
-    const override = req.headers['x-tenant-id'];
-    if (typeof override === 'string' && override.length > 0) {
-      if (!roles.includes('super_admin')) throw errPermDenied('仅平台账号可切换租户');
-      (req as RequestWithAuth).tenantId = override;
-    } else {
-      (req as RequestWithAuth).tenantId = user.tenant_id ?? undefined;
-    }
+    // 租户上下文只来自账号本身。平台账号(tenant_id=null)没有租户上下文，
+    // 租户业务接口会被 requireTenantId 直接拒绝——平台后台不干预开发者内部数据。
+    (req as RequestWithAuth).tenantId = user.tenant_id ?? undefined;
     (req as RequestWithAuth).user = authUser;
     return true;
   }

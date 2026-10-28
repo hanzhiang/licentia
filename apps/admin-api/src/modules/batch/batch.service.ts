@@ -266,8 +266,8 @@ export class BatchService {
         .where('id', '=', batchId)
         .executeTakeFirst();
       if (!batch) throw errBatchNotFound();
-      const canSeeAll =
-        actor.actorType === 'tenant_admin' || actor.actorType === 'super_admin';
+      // 开发者所有者可导出本租户全部批次; 运营/渠道只能导出自己创建的
+      const canSeeAll = actor.actorType === 'developer_owner';
       if (!canSeeAll && batch.created_by !== actor.userId) {
         throw errBatchNotFound();
       }

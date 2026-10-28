@@ -45,6 +45,8 @@ Licentia 用来给商业软件发"钥匙"：把授权码发给客户，客户在
 | **API Key**：明文一次性、常数时间比较、7 天重叠轮换、按秒限流 | `packages/db` + `apps/open-api` |
 | **Webhook**：Outbox 扇出 → HMAC 签名投递 → 指数退避 → 死信 → 端点熔断 | `apps/worker` |
 | **通知投递**：SMTP / 短信网关，pending → sent 真实状态机 | `packages/notify` |
+| **平台/开发者分层**：平台只管理开发者账号（列表/停用/恢复），无租户业务权限；开发者自助注册即开通 | `apps/admin-api/modules/platform` | 两级边界实测 |
+| **团队成员管理**：开发者自己加人、改角色、停用（停用即吊销 refresh） | `apps/admin-api/modules/member` | 接口实测 |
 | **自助门户**：手机验证码登录、组织授权激活、自助换机 | `apps/portal-api` |
 | **管理后台**：产品策略、发码、授权与设备、客户、报表、审计、API Key、Webhook | `web/` |
 | **渠道工作台**：独立前端，面向渠道发码账号 | `partner-web/` |
@@ -89,16 +91,20 @@ pnpm dev                                            # 拉起全部服务 + 管�
 
 - 管理后台：<http://localhost:5173>
 - 渠道工作台：<http://localhost:5174>
-- 初始账号：`admin@demo.local` / `Passw0rd!demo`
+- 平台管理员：`admin@lp.local` / `Passw0rd!demo`（`pnpm seed:users` 创建）
+- 开发者账号：在登录页「立即注册」自助开通，或用 `pnpm seed:demo` 生成演示账号
 
-| 邮箱 | 角色 | 权限要点 |
-|---|---|---|
-| super@lp.local | super_admin | 全部，需 `X-Tenant-Id` 指定租户 |
-| admin@demo.local | tenant_admin | 本租户全部 |
-| operator@demo.local | operator | 发码/续期/吊销 |
-| partner@demo.local | partner | 渠道发码 |
-| support@demo.local | support | 查询/解绑 |
-| finance@demo.local | finance | 只读报表/审计 |
+系统是两级结构，两层互相看不到对方的业务数据：
+
+| 层 | 账号 | 角色 | 能看到/操作 |
+|---|---|---|---|
+| 平台 | admin@lp.local | platform_admin | 只有开发者账号列表与用量汇总；可停用/恢复 |
+| 开发者 | 自助注册 | developer_owner | 本租户全部业务 + 团队成员 |
+| 开发者 | admin@demo.local | developer_owner | 演示租户所有者 |
+| 开发者 | operator@demo.local | developer_operator | 发码/续期/吊销/渠道 |
+| 开发者 | support@demo.local | developer_support | 查询/解绑设备 |
+| 开发者 | finance@demo.local | developer_finance | 只读报表/审计 |
+| 开发者 | partner@demo.local | developer_partner | 渠道发码（仅本人批次） |
 
 详细上线流程见 [交付与运维手册](docs/OPERATIONS.md)。
 

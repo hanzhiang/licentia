@@ -23,6 +23,8 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30000,
     hookTimeout: 30000,
+    // e2e 依赖 demo 租户/产品/策略/账号, 每次跑测试前幂等重建(数据可能被 db:reset 清空)
+    globalSetup: ['test/e2e/global-setup.ts'],
     // e2e 共享同一个开发库, 测试文件必须串行(内部用例按顺序执行)
     fileParallelism: false,
     sequence: { concurrent: false },

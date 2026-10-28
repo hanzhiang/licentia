@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { Kysely } from 'kysely';
 import { AppError } from '@lp/domain';
 import { uuidv7, withSystemTx, type LpDb } from '@lp/db';
-import { signJwt, verifyPassword } from '@lp/auth';
+import { hashPassword, signJwt, verifyPassword } from '@lp/auth';
 import { writeAudit } from '@lp/audit';
 import { getConfig } from '@lp/config';
 import type { Redis } from '@lp/cache';
@@ -133,6 +133,20 @@ export class AuthService {
     return { keysDir: cfg.AUTH_JWT_KEYS_DIR, kid: cfg.AUTH_JWT_KID };
   }
 
+  /**
+   * 平台停用某个开发者账号后，该租户下所有成员都不能再登录/刷新。
+   * 平台账号(tenant_id 为空)不受影响。
+   */
+  private async assertTenantActive(tenantId: string | null): Promise<void> {
+    if (!tenantId) return;
+    const tenant = await withSystemTx(this.db, (tx) =>
+      tx.selectFrom('tenants').select(['status']).where('id', '=', tenantId).executeTakeFirst(),
+    );
+    if (tenant && tenant.status !== 'active') {
+      throw new AppError('TENANT_SUSPENDED', '该开发者账号已被平台停用');
+    }
+  }
+
   async login(email: string, password: string, ip: string | null): Promise<LoginResult> {
     const cfg = getConfig();
     const lockedFor = await this.lockedMinutes(email);
@@ -159,6 +173,7 @@ export class AuthService {
       throw new AppError('AUTH_REQUIRED', '邮箱或密码错误');
     }
     await this.clearFailures(email);
+    await this.assertTenantActive(user.tenant_id);
 
     const roles = await this.rbac.rolesOf(user.id);
     const permissions = await this.rbac.permsOf(user.id);
@@ -210,6 +225,114 @@ export class AuthService {
     };
   }
 
+  /**
+   * 开发者自助注册(立即开通): 一次事务内创建 租户 + 账号 + developer_owner 角色。
+   * 租户即"开发者账号"——注册者立刻拥有自己的应用、授权码与成员空间，
+   * 与平台层完全隔离(平台只看得到这个租户的存在与用量汇总)。
+   */
+  async register(
+    input: { email: string; password: string; developerName: string },
+    ip: string | null,
+  ): Promise<LoginResult> {
+    const cfg = getConfig();
+    const email = input.email.trim().toLowerCase();
+    const name = input.developerName.trim();
+
+    const existing = await withSystemTx(this.db, (tx) =>
+      tx.selectFrom('users').select('id').where('email', '=', email).executeTakeFirst(),
+    );
+    if (existing) throw new AppError('EMAIL_TAKEN', '该邮箱已注册');
+
+    const tenantId = uuidv7();
+    const userId = uuidv7();
+    const tenantCode = buildTenantCode(name);
+    const passwordHash = hashPassword(input.password);
+
+    await withSystemTx(this.db, async (tx) => {
+      await tx
+        .insertInto('tenants')
+        .values({
+          id: tenantId,
+          code: tenantCode,
+          name,
+          status: 'active',
+          plan: 'standard',
+          settings: {},
+          created_at: new Date(),
+          updated_at: new Date(),
+          deleted_at: null,
+        })
+        .execute();
+      await tx
+        .insertInto('users')
+        .values({
+          id: userId,
+          tenant_id: tenantId,
+          email,
+          phone_hash: null,
+          password_hash: passwordHash,
+          status: 'active',
+          last_login_at: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          deleted_at: null,
+        })
+        .execute();
+      await tx
+        .insertInto('user_roles')
+        .values({ user_id: userId, role_code: 'developer_owner' })
+        .execute();
+      await writeAudit(tx, {
+        tenantId,
+        actorType: 'developer_owner',
+        actorId: userId,
+        action: 'auth.register',
+        resourceType: 'tenant',
+        resourceId: tenantId,
+        detail: { email, developer_name: name, tenant_code: tenantCode },
+        ip,
+      });
+    });
+
+    const roles = ['developer_owner'];
+    const permissions = await this.rbac.permsOf(userId);
+    const accessToken = signJwt(
+      { sub: userId, tid: tenantId, typ: 'access' },
+      cfg.AUTH_JWT_TTL_S,
+      this.jwtCfg(),
+    );
+    const refreshToken = crypto.randomBytes(48).toString('base64url');
+    await withSystemTx(this.db, (tx) =>
+      tx
+        .insertInto('refresh_tokens')
+        .values({
+          id: uuidv7(),
+          user_id: userId,
+          token_hash: crypto.createHash('sha256').update(refreshToken, 'utf8').digest(),
+          expires_at: new Date(Date.now() + cfg.AUTH_REFRESH_TTL_D * 86_400_000),
+          revoked_at: null,
+          created_at: new Date(),
+          ip,
+          ua: null,
+        })
+        .execute(),
+    );
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_in: cfg.AUTH_JWT_TTL_S,
+      user: {
+        id: userId,
+        email,
+        tenant_id: tenantId,
+        roles,
+        actor_type: 'developer_owner',
+        permissions,
+      },
+    };
+  }
+
   async refresh(refreshToken: string, ip: string | null): Promise<LoginResult> {
     const cfg = getConfig();
     const tokenHash = crypto.createHash('sha256').update(refreshToken, 'utf8').digest();
@@ -228,6 +351,7 @@ export class AuthService {
     if (!user || user.status !== 'active') {
       throw new AppError('AUTH_REQUIRED', '用户已停用');
     }
+    await this.assertTenantActive(user.tenant_id);
     const roles = await this.rbac.rolesOf(user.id);
     const permissions = await this.rbac.permsOf(user.id);
     const actorType = primaryActorType(roles);
@@ -321,4 +445,17 @@ export class AuthService {
       }),
     );
   }
+}
+
+/**
+ * 租户码: 从开发者名提取 ASCII 字母数字作为可读前缀，再拼随机后缀保证唯一。
+ * 中文名会被提取为空，此时回落 'dev'。
+ */
+function buildTenantCode(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 20);
+  const suffix = crypto.randomBytes(4).toString('hex');
+  return `${slug || 'dev'}-${suffix}`;
 }

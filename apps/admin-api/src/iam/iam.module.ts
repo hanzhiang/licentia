@@ -24,7 +24,14 @@ export interface UserRow {
 
 /** 角色主类型映射(审计 actor_type 用) */
 export function primaryActorType(roles: string[]): string {
-  const order = ['super_admin', 'tenant_admin', 'operator', 'support', 'finance', 'developer'];
+  const order = [
+    'platform_admin',
+    'developer_owner',
+    'developer_operator',
+    'developer_support',
+    'developer_finance',
+    'developer_partner',
+  ];
   for (const r of order) if (roles.includes(r)) return r;
   return 'system';
 }

@@ -11,6 +11,8 @@ import { AuditModule } from './modules/audit/audit.module';
 import { ActivationsModule } from './modules/activation/activation.module';
 import { ReportsModule } from './modules/report/report.module';
 import { EndCustomersModule } from './modules/endcustomer/end-customers.module';
+import { PlatformModule } from './modules/platform/platform.module';
+import { MemberModule } from './modules/member/member.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { HealthController } from './health.controller';
 
@@ -28,6 +30,8 @@ import { HealthController } from './health.controller';
     ActivationsModule,
     ReportsModule,
     EndCustomersModule,
+    PlatformModule,
+    MemberModule,
     CatalogModule,
   ],
   controllers: [HealthController],

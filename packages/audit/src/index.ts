@@ -5,6 +5,13 @@ import type { LpTx } from '@lp/db';
 export interface AuditEntryInput {
   tenantId: string | null;
   actorType:
+    | 'platform_admin'
+    | 'developer_owner'
+    | 'developer_operator'
+    | 'developer_support'
+    | 'developer_finance'
+    | 'developer_partner'
+    // 旧取值保留: 历史数据仍可能读到
     | 'super_admin'
     | 'tenant_admin'
     | 'operator'

@@ -6,14 +6,18 @@
         <span>许可控制台</span>
       </div>
       <el-menu router :default-active="$route.path" class="nav">
-        <el-menu-item-group title="授权运营">
-          <el-menu-item index="/licenses">授权码</el-menu-item>
+        <el-menu-item-group v-if="auth.can('platform:developer:read')" title="平台管理">
+          <el-menu-item index="/developers">开发者账号</el-menu-item>
+        </el-menu-item-group>
+        <el-menu-item-group v-if="isDeveloper" title="我的应用">
+          <el-menu-item v-if="auth.can('license:read')" index="/licenses">授权码</el-menu-item>
           <el-menu-item v-if="auth.can('product:write')" index="/catalog">产品与策略</el-menu-item>
           <el-menu-item v-if="auth.can('license:issue')" index="/batches">批量发码</el-menu-item>
           <el-menu-item v-if="auth.can('end_customer:write')" index="/customers">终端客户</el-menu-item>
+          <el-menu-item v-if="auth.can('member:read')" index="/members">团队成员</el-menu-item>
           <el-menu-item v-if="auth.can('report:read')" index="/reports">渠道报表</el-menu-item>
         </el-menu-item-group>
-        <el-menu-item-group title="平台治理">
+        <el-menu-item-group v-if="isDeveloper" title="安全与集成">
           <el-menu-item v-if="auth.can('audit:read')" index="/audit">审计日志</el-menu-item>
           <el-menu-item v-if="auth.can('apikey:write')" index="/apikeys">API Key</el-menu-item>
           <el-menu-item v-if="auth.can('webhook:write')" index="/webhooks">Webhook</el-menu-item>
@@ -36,13 +40,18 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '../store';
 import { api } from '../api';
 
 const auth = useAuth();
 const router = useRouter();
+
+// 平台账号没有租户上下文, 只看开发者账号; 开发者才看自己的应用与授权
+const isDeveloper = computed(
+  () => !auth.can('platform:developer:read') && !!auth.user?.tenant_id,
+);
 
 async function refreshProfile(): Promise<void> {
   try {

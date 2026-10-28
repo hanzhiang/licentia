@@ -32,6 +32,7 @@ export type ErrorCode =
   | 'IDEMPOTENCY_KEY_REQUIRED'
   | 'IDEMPOTENCY_CONFLICT'
   | 'IDEMPOTENCY_IN_PROGRESS'
+  | 'EMAIL_TAKEN'
   | 'DEPENDENCY_UNAVAILABLE'
   | 'INTERNAL_ERROR';
 
@@ -69,6 +70,7 @@ export const ERROR_CATALOG: Record<ErrorCode, ErrorMeta> = {
   IDEMPOTENCY_KEY_REQUIRED: { http: 400, message: '缺少 Idempotency-Key 头' },
   IDEMPOTENCY_CONFLICT: { http: 409, message: '幂等键已被不同请求使用' },
   IDEMPOTENCY_IN_PROGRESS: { http: 409, message: '相同幂等键的请求正在处理中, 请稍后重试' },
+  EMAIL_TAKEN: { http: 409, message: '邮箱已被占用' },
   DEPENDENCY_UNAVAILABLE: { http: 503, message: '依赖服务暂不可用' },
   INTERNAL_ERROR: { http: 500, message: '内部错误' },
 };

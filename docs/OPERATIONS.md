@@ -27,42 +27,62 @@ pnpm --filter lp-web preview -- --host 0.0.0.0 --port 5173
 开发环境也可以直接执行 `pnpm dev`。`vite preview` 适合本机验收；正式部署应把
 `web/dist` 交给 Nginx 等静态服务器，并把 `/api` 反向代理到 admin-api。
 
-## 2. 管理面板账号
+## 2. 账号与两级权限
 
-种子账号密码默认均为 `Passw0rd!demo`：
+系统分两层，互相看不到对方的业务数据：
 
-| 账号 | 角色 | 典型职责 |
+| 层 | 角色 | 能看到/操作 |
 |---|---|---|
-| `super@lp.local` | 平台超管 | 跨租户管理，需要填写目标租户 ID |
-| `admin@demo.local` | 租户管理员 | 产品、策略、发码、续期、吊销、审计 |
-| `operator@demo.local` | 运营 | 发码、续期、渠道 |
-| `support@demo.local` | 客服 | 查询授权、解绑设备 |
-| `finance@demo.local` | 财务/审计 | 报表、审计只读 |
+| 平台 | `platform_admin` | 只有「开发者账号」列表与用量汇总；可停用/恢复账号。看不到任何授权码、终端用户、设备 |
+| 开发者 | `developer_owner` | 本租户全部业务 + 团队成员管理 |
+| 开发者 | `developer_operator` | 发码、续期、吊销、渠道、终端客户 |
+| 开发者 | `developer_support` | 查询授权、解绑设备 |
+| 开发者 | `developer_finance` | 报表、审计只读 |
+| 开发者 | `developer_partner` | 渠道发码（仅本人创建的批次） |
 
-上线前必须修改全部种子密码。
+### 2.1 初始化
 
-### 2.1 权限矩阵
+```bash
+pnpm db:migrate      # 建表 + 角色
+pnpm seed:users      # 只创建平台管理员 admin@lp.local / Passw0rd!demo
+pnpm seed:demo       # (可选) 演示用开发者 demo 及其 5 个角色账号
+```
 
-管理面板会根据登录响应中的有效权限隐藏菜单和按钮，后端仍会独立强制鉴权：
+开发者账号由用户自助注册：管理面板登录页 → 立即注册，填开发者名称/邮箱/密码即可，
+注册后立即开通并成为该租户的 `developer_owner`。平台侧无需审批。
 
-| 权限 | tenant_admin | operator | support | finance |
-|---|---:|---:|---:|---:|
-| `product:write` / `policy:write` | 是 | 否 | 否 | 否 |
-| `channel:write` | 否 | 是 | 否 | 否 |
-| `license:issue` | 是 | 是 | 否 | 否 |
-| `license:read` | 是 | 是 | 是 | 是 |
-| `license:renew` | 是 | 是 | 否 | 否 |
-| `license:revoke:approve` | 是 | 是 | 否 | 否 |
-| `device:release` | 是 | 否 | 是 | 否 |
-| `end_customer:write` | 是 | 是 | 否 | 否 |
-| `report:read` | 是 | 否 | 否 | 是 |
-| `audit:read` | 是 | 否 | 否 | 是 |
-| `apikey:write` | 是 | 否 | 否 | 否 |
-| `webhook:write` | 是 | 否 | 否 | 否 |
+### 2.2 权限矩阵
 
-如果看到 `缺少权限: product:write`，说明当前登录的是运营等无产品写权限的角色。
-应退出后使用 `admin@demo.local`，或由租户管理员调整角色权限。不要通过前端隐藏来绕过，
+管理面板按登录响应里的有效权限渲染菜单与按钮，后端独立强制鉴权：
+
+| 权限 | owner | operator | support | finance | partner |
+|---|---:|---:|---:|---:|---:|
+| `product:write` / `policy:write` | 是 | 否 | 否 | 否 | 否 |
+| `channel:write` | 是 | 是 | 否 | 否 | 否 |
+| `license:issue` | 是 | 是 | 否 | 否 | 是 |
+| `license:read` | 是 | 是 | 是 | 是 | 是 |
+| `license:renew` | 是 | 是 | 否 | 否 | 否 |
+| `license:revoke:approve` | 是 | 是 | 否 | 否 | 否 |
+| `device:release` | 是 | 否 | 是 | 否 | 否 |
+| `end_customer:write` | 是 | 是 | 否 | 否 | 否 |
+| `member:read` / `member:write` | 是 | 否 | 否 | 否 | 否 |
+| `report:read` | 是 | 否 | 否 | 是 | 否 |
+| `audit:read` | 是 | 否 | 否 | 是 | 否 |
+| `apikey:write` | 是 | 否 | 否 | 否 | 否 |
+| `webhook:write` | 是 | 否 | 否 | 否 | 否 |
+
+平台管理员只有 `platform:developer:read|write|suspend`，不在上表内。
+
+如果看到 `缺少权限: product:write`，说明当前账号不是开发者所有者。
+应退出后使用该租户的 owner 账号，或请 owner 在「团队成员」里调整角色。不要通过前端隐藏来绕过，
 后端 `PermGuard` 会继续拒绝。
+
+### 2.3 停用开发者账号
+
+平台在「开发者账号」里停用后：
+- 该租户所有成员无法登录，refresh 也会被拒
+- 已签发的 access token 在 15 分钟内失效
+- 恢复后立即可以重新登录
 
 Access token 默认 15 分钟。管理面板在收到 401 后会自动使用 refresh token 轮换新会话；
 refresh token 失效时才返回登录页。

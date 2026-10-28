@@ -99,7 +99,7 @@ HB=$(curl -sf -X POST "$CLIENT/client/v1/heartbeat" \
 NEW_TOKEN=$(echo "$HB" | jsonq data.client_token)
 echo "heartbeat OK, token rotated"
 
-echo "== 5. validate via open api (tenant_admin 建 Key; operator 无 apikey:write) =="
+echo "== 5. validate via open api (developer_owner 建 Key; operator 无 apikey:write) =="
 TADMIN=$(curl -sf -X POST "$ADMIN/admin/v1/auth/login" -H 'Content-Type: application/json' \
   -d "{\"email\":\"admin@demo.local\",\"password\":\"$PASSWORD\"}")
 TADMIN_TOKEN=$(echo "$TADMIN" | jsonq data.access_token)
@@ -139,7 +139,7 @@ if [ "$(echo "$VAL2" | jsonq data.valid)" != "false" ] || [ "$(echo "$VAL2" | js
 fi
 echo "validate after revoke OK (cache invalidated via redis pub/sub)"
 
-echo "== 10. audit chain verify (tenant_admin) =="
+echo "== 10. audit chain verify (developer_owner) =="
 VERIFY=$(curl -sf "$ADMIN/admin/v1/audit-events/verify" -H "Authorization: Bearer $TADMIN_TOKEN")
 VALID=$(echo "$VERIFY" | jsonq data.valid)
 CHECKED=$(echo "$VERIFY" | jsonq data.checked)

@@ -44,8 +44,7 @@ async function refreshSession(): Promise<AuthPayload> {
 api.interceptors.request.use((cfg) => {
   const token = localStorage.getItem('lp_token');
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
-  const tenantId = localStorage.getItem('lp_tenant');
-  if (tenantId) cfg.headers['X-Tenant-Id'] = tenantId;
+  // 不再发送 X-Tenant-Id: 租户上下文只来自账号本身，平台账号不能借头部切换
   return cfg;
 });
 

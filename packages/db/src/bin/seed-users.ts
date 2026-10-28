@@ -1,26 +1,26 @@
 /**
- * 种子用户 CLI: 创建平台超管 + demo 租户四角色账号(幂等).
+ * 种子账号 CLI(幂等): 只创建平台管理员。
+ *
+ * 两级模型下不再预置开发者账号 —— 开发者通过 `POST /admin/v1/auth/register` 自助注册，
+ * 注册时自动创建租户并成为该租户的 developer_owner。
+ *
  * 用法: pnpm seed:users   (密码取 SEED_PASSWORD, 默认 Passw0rd!demo)
  */
 import { Client } from 'pg';
 import { hashPassword } from '@lp/auth';
 
-const DEMO_TENANT = '11111111-1111-4111-8111-111111111111';
-
 interface SeedUser {
   id: string;
-  tenantId: string | null;
   email: string;
   role: string;
 }
 
 const USERS: SeedUser[] = [
-  { id: 'a1111111-0000-4000-8000-000000000001', tenantId: null, email: 'super@lp.local', role: 'super_admin' },
-  { id: 'a1111111-0000-4000-8000-000000000002', tenantId: DEMO_TENANT, email: 'admin@demo.local', role: 'tenant_admin' },
-  { id: 'a1111111-0000-4000-8000-000000000003', tenantId: DEMO_TENANT, email: 'operator@demo.local', role: 'operator' },
-  { id: 'a1111111-0000-4000-8000-000000000004', tenantId: DEMO_TENANT, email: 'support@demo.local', role: 'support' },
-  { id: 'a1111111-0000-4000-8000-000000000005', tenantId: DEMO_TENANT, email: 'finance@demo.local', role: 'finance' },
-  { id: 'a1111111-0000-4000-8000-000000000006', tenantId: DEMO_TENANT, email: 'partner@demo.local', role: 'partner' },
+  {
+    id: 'a1111111-0000-4000-8000-000000000001',
+    email: 'admin@lp.local',
+    role: 'platform_admin',
+  },
 ];
 
 async function main(): Promise<void> {
@@ -39,13 +39,13 @@ async function main(): Promise<void> {
       const passwordHash = hashPassword(password);
       if (existing.rows.length === 0) {
         await client.query(
-          'insert into users (id, tenant_id, email, password_hash, status) values ($1,$2,$3,$4,\'active\')',
-          [u.id, u.tenantId, u.email, passwordHash],
+          "insert into users (id, tenant_id, email, password_hash, status) values ($1,null,$2,$3,'active')",
+          [u.id, u.email, passwordHash],
         );
         console.log(`seed: created ${u.email} (${u.role})`);
       } else {
         await client.query(
-          "update users set password_hash = $2, status = 'active' where email = $1",
+          "update users set password_hash = $2, status = 'active', tenant_id = null where email = $1",
           [u.email, passwordHash],
         );
         console.log(`seed: updated ${u.email}`);
@@ -56,6 +56,7 @@ async function main(): Promise<void> {
       );
     }
     console.log(`seed: done. 密码为 ${password}(可用 SEED_PASSWORD 覆盖), 上线前请修改`);
+    console.log('seed: 开发者账号请通过 POST /admin/v1/auth/register 自助注册');
   } finally {
     await client.end();
   }

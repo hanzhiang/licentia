@@ -14,6 +14,13 @@ const RefreshSchema = z.object({
   refresh_token: z.string().min(20).max(200),
 });
 
+const RegisterSchema = z.object({
+  email: z.string().email().max(200),
+  password: z.string().min(8).max(200),
+  /** 开发者/团队名称，成为租户名 */
+  developer_name: z.string().min(1).max(100),
+});
+
 function clientIp(req: FastifyRequest): string | null {
   const fwd = req.headers['x-forwarded-for'];
   if (typeof fwd === 'string' && fwd.length > 0) return fwd.split(',')[0]!.trim();
@@ -34,6 +41,25 @@ export class AuthController {
     }
     const result = await this.service.login(parsed.data.email, parsed.data.password, clientIp(req));
     void reply.code(200).send({ data: result });
+  }
+
+  @Post('register')
+  async register(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
+    const parsed = RegisterSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new AppError('REQ_INVALID', '请求参数不合法', {
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+    const result = await this.service.register(
+      {
+        email: parsed.data.email,
+        password: parsed.data.password,
+        developerName: parsed.data.developer_name,
+      },
+      clientIp(req),
+    );
+    void reply.code(201).send({ data: result });
   }
 
   @Post('refresh')
