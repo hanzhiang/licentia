@@ -44,10 +44,14 @@ function storedPermissions(): string[] {
 export function landingPath(): string {
   const perms = storedPermissions();
   const has = (p: string): boolean => perms.includes('*') || perms.includes(p);
+  // 平台账号只看开发者账号
   if (has('platform:developer:read')) return '/developers';
-  if (has('license:read')) return '/licenses';
-  if (has('member:read')) return '/members';
-  if (has('report:read')) return '/reports';
+  // 开发者内部按职责分开落地页: 否则四个角色登录后第一屏完全一样
+  if (has('member:write')) return '/licenses'; // 所有者: 先看授权全景
+  if (has('license:issue')) return '/batches'; // 运营/渠道: 主业是发码
+  if (has('report:read')) return '/reports'; // 财务: 报表
+  if (has('audit:read')) return '/audit';
+  if (has('license:read')) return '/licenses'; // 客服: 查询授权
   return '/login';
 }
 
