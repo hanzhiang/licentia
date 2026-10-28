@@ -1,0 +1,17 @@
+{
+  "name": "@lp/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@lp/auth": "workspace:*",
+    "@lp/domain": "workspace:*",
+    "kysely": "^0.27.4",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.11.6"
+  }
+}

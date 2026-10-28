@@ -1,0 +1,18 @@
+{
+  "name": "@license-platform/sdk",
+  "version": "0.1.0",
+  "description": "License & Entitlement Platform TS SDK: activate / heartbeat / offline license verify (Ed25519) / webhook signature verify",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.5.4"
+  }
+}

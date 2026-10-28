@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"],
+  "references": [
+    { "path": "../config" },
+    { "path": "../db" },
+    { "path": "../events" },
+    { "path": "../keygen" }
+  ]
+}

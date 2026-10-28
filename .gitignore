@@ -1,0 +1,29 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# 运行时数据: 含 JWT 私钥(data/keys)、数据库备份(data/backups)、导出文件
+data/
+
+# 环境变量与凭据
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# 日志与打包产物
+*.log
+*.tar.gz
+*.zip
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/

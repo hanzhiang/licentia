@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture Review — license-platform</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'default' });</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      line-height: 1.6;
+      display: flex;
+      min-height: 100vh;
+      min-width: 0;
+    }
+
+    nav {
+      width: 220px;
+      flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid #e5e5ea;
+      padding: 2rem 1.25rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    nav h2 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8e8e93;
+      margin-bottom: 1rem;
+    }
+
+    nav a {
+      display: block;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      color: #3a3a3c;
+      text-decoration: none;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+      transition: background 0.15s;
+    }
+
+    nav a:hover { background: #f2f2f7; }
+
+    main {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 2.5rem 3rem;
+      max-width: 1600px;
+    }
+
+    header {
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #e5e5ea;
+    }
+
+    header h1 { font-size: 1.75rem; font-weight: 700; }
+    header p { margin-top: 0.5rem; color: #6e6e73; font-size: 0.95rem; }
+    header .meta { margin-top: 0.75rem; font-size: 0.8rem; color: #8e8e93; }
+
+    section { margin-bottom: 3rem; scroll-margin-top: 2rem; }
+
+    section h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #e5e5ea;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e5ea;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+
+    .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; }
+    .card p { color: #3a3a3c; font-size: 0.9rem; overflow-wrap: break-word; word-break: break-word; }
+
+    .diagram-card {
+      background: #fff;
+      border: 1px solid #e5e5ea;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+      overflow-x: auto;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      min-width: 0;
+    }
+
+    .diagram-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .diagram-desc { color: #6e6e73; font-size: 0.85rem; margin-bottom: 1rem; }
+    .mermaid {
+      min-height: 80px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .findings { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .finding {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      padding: 0.875rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      min-width: 0;
+    }
+
+    .finding.strength { background: #f0faf4; border-left: 3px solid #30d158; }
+    .finding.concern  { background: #fffbf0; border-left: 3px solid #ff9f0a; }
+    .finding.risk     { background: #fff5f5; border-left: 3px solid #ff3b30; }
+
+    .badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .finding-text {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .badge-strength { background: #30d158; color: #fff; }
+    .badge-concern  { background: #ff9f0a; color: #fff; }
+    .badge-risk     { background: #ff3b30; color: #fff; }
+
+    .finding-text strong { display: block; margin-bottom: 0.2rem; overflow-wrap: break-word; word-break: break-word; }
+    .finding-text p { color: #3a3a3c; overflow-wrap: break-word; word-break: break-word; }
+    .finding-text * { overflow-wrap: break-word; word-break: break-word; }
+
+    .recommendations ol { padding-left: 1.5rem; }
+    .recommendations li { margin-bottom: 0.75rem; color: #3a3a3c; font-size: 0.9rem; overflow-wrap: break-word; word-break: break-word; }
+    .recommendations li strong { color: #1d1d1f; }
+
+    @media (max-width: 600px) {
+      body {
+        flex-direction: column;
+      }
+
+      nav {
+        width: 100%;
+        min-width: 100%;
+        height: auto;
+        max-height: 30vh;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid #e5e5ea;
+        overflow-x: auto;
+      }
+
+      nav a {
+        display: inline-block;
+        margin-bottom: 0;
+        margin-right: 0.25rem;
+      }
+
+      main {
+        padding: 1.5rem 1.25rem;
+        max-width: 100%;
+      }
+
+      .diagram-card { margin-left: -1.25rem; margin-right: -1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <h2>Architecture Review</h2>
+    <a href="#current">当前架构</a>
+    <a href="#separation-of-concerns">关注点分离</a>
+    <a href="#cohesion-and-coupling">内聚与耦合</a>
+    <a href="#layered-architecture">分层架构</a>
+    <a href="#hexagonal-architecture-ports-and-adapters">六边形架构</a>
+    <a href="#scalability">可扩展性</a>
+    <a href="#observability">可观测性</a>
+    <a href="#security">安全</a>
+    <a href="#reliability">可靠性</a>
+    <a href="#resilience">韧性</a>
+    <a href="#data-architecture">数据架构</a>
+    <a href="#cost-efficiency-finops">成本效率</a>
+    <a href="#operability">可运维性</a>
+    <a href="#deployment-architecture">部署架构</a>
+    <a href="#event-architecture">事件架构</a>
+    <a href="#ai-architecture">AI 架构</a>
+    <a href="#multi-tenancy">多租户</a>
+    <a href="#architecture-governance">架构治理</a>
+    <a href="#domain-architecture">领域架构</a>
+    <a href="#api-architecture">API 架构</a>
+    <a href="#architecture-fitness-metrics">架构适应度指标</a>
+    <a href="#common-anti-patterns">常见反模式</a>
+    <a href="#testability">可测试性</a>
+    <a href="#evolvability">可演进性</a>
+    <a href="#architectural-smells-codebase-review-only-not-applicable-in-design-review">架构坏味道</a>
+    <a href="#recommended">建议架构</a>
+  </nav>
+
+  <main>
+    <header>
+      <h1>license-platform 架构审查</h1>
+      <p>面向学校/企业交付的软件授权与许可管理平台：发码、激活、心跳、续期、吊销、离线许可与多租户隔离。</p>
+      <p class="meta">生成于 2026-10-28 · Codebase Review · 审查范围：服务边界 / 授权码生命周期 / 租户隔离 / 客户端接入 / 发码权限 / 数据一致性</p>
+    </header>
+
+    <section id="current">
+      <h2>当前架构</h2>
+
+      <div class="diagram-card">
+        <h3>System Context — 系统上下文</h3>
+        <p class="diagram-desc">平台作为黑盒，展示四类调用方与三类外部依赖。</p>
+        <div class="mermaid">
+graph TB
+  Admin(["平台管理员"])
+  Partner(["渠道账号"])
+  Org(["终端客户 · 组织管理员"])
+  BizSys(["客户业务系统"])
+  EndUser(["最终用户 · 客户端"])
+
+  subgraph sg-platform["授权与许可平台"]
+    Platform["4 个 API + 后台 Worker"]
+  end
+
+  Gateway["SMTP / SMS 网关"]
+  Hook(["客户 Webhook 端点"])
+  Vault["Vault Transit 签名"]
+
+  Admin -->|'管理后台 Web 5173'| Platform
+  Partner -->|'渠道工作台 5174'| Platform
+  Org -->|'自助门户 3004'| Platform
+  EndUser -->|'TS SDK 调 client-api 3002'| Platform
+  BizSys -->|'API Key 调 open-api 3003'| Platform
+  Platform -->|'到期提醒邮件与短信'| Gateway
+  Platform -->|'事件投递带 HMAC 签名'| Hook
+  Platform -->|'离线许可签名与验签公钥'| Vault
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <h3>Component — 组件与依赖</h3>
+        <p class="diagram-desc">真实组件划分：5 个可部署进程共享 13 个 workspace 包，并直连同一套存储。</p>
+        <div class="mermaid">
+graph TB
+  subgraph sg-clients["调用方"]
+    AdminWeb["管理后台 Vue3 5173"]
+    PartnerWeb["渠道工作台 Vue3 5174"]
+    SDKc["TS SDK 零依赖"]
+    Bizc["客户业务系统"]
+  end
+
+  subgraph sg-apps["应用层 · 独立进程"]
+    AdminAPI["admin-api 3001"]
+    ClientAPI["client-api 3002"]
+    OpenAPI["open-api 3003"]
+    PortalAPI["portal-api 3004"]
+    WorkerP["worker"]
+  end
+
+  subgraph sg-shared["共享包 · workspace 同版本发布"]
+    DomainP["domain 状态机与规则"]
+    DBX["db Kysely 类型与租户事务"]
+    SignerP["signer 双 kid 与 JWKS"]
+    AuditP["audit 哈希链"]
+    KeygenP["keygen 码与 AEAD"]
+    NotifyP["notify 通道与模板"]
+    IdemP["idempotency"]
+    CacheP["cache Redis"]
+  end
+
+  subgraph sg-store["共享存储"]
+    PG[("PostgreSQL 28 表 + 分区")]
+    RedisC[("Redis")]
+    VaultC[("Vault")]
+  end
+
+  AdminWeb --> AdminAPI
+  PartnerWeb --> AdminAPI
+  SDKc --> ClientAPI
+  Bizc --> OpenAPI
+
+  AdminAPI --> DomainP
+  ClientAPI --> DomainP
+  OpenAPI --> DomainP
+  PortalAPI --> DomainP
+  WorkerP --> DomainP
+
+  AdminAPI --> DBX
+  ClientAPI --> DBX
+  OpenAPI --> DBX
+  PortalAPI --> DBX
+  WorkerP --> DBX
+
+  AdminAPI --> CacheP
+  ClientAPI --> CacheP
+  OpenAPI --> CacheP
+  PortalAPI --> CacheP
+  AdminAPI --> AuditP
+  PortalAPI --> AuditP
+  AdminAPI --> IdemP
+  ClientAPI --> SignerP
+  WorkerP --> NotifyP
+  WorkerP --> KeygenP
+
+  DBX --> PG
+  CacheP --> RedisC
+  SignerP --> VaultC
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <h3>Application — 应用拓扑与调用路径</h3>
+        <p class="diagram-desc">进程之间没有任何直连；全部收敛到共享数据库，这是本系统最关键的结构性事实。</p>
+        <div class="mermaid">
+graph LR
+  subgraph sg-callers["调用方进程"]
+    Browser["浏览器"]
+    Desktop["桌面客户端"]
+    ServerApp["客户服务端"]
+  end
+
+  subgraph sg-proc["平台进程 · 互不调用"]
+    A1["admin-api"]
+    A2["client-api"]
+    A3["open-api"]
+    A4["portal-api"]
+    A5["worker"]
+  end
+
+  DB[("共享 PostgreSQL")]
+  RD[("Redis")]
+  VT[("Vault")]
+
+  Browser -->|'admin-api 直连'| A1
+  Desktop -->|'client-api 直连'| A2
+  ServerApp -->|'open-api 直连'| A3
+  Browser -->|'portal-api 直连'| A4
+
+  A1 --> DB
+  A2 --> DB
+  A3 --> DB
+  A4 --> DB
+  A5 --> DB
+  A1 --> RD
+  A2 --> RD
+  A3 --> RD
+  A4 --> RD
+  A2 --> VT
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <h3>Data / Information Architecture — 数据实体与归属</h3>
+        <p class="diagram-desc">28 张表、18 条 RLS 策略、1 个审计哈希链、1 个事务性 Outbox；所有业务表以 tenant_id 为隔离键。</p>
+        <div class="mermaid">
+erDiagram
+  TENANTS ||--o{ USERS : "has"
+  TENANTS ||--o{ PRODUCTS : "owns"
+  TENANTS ||--o{ CHANNELS : "owns"
+  PRODUCTS ||--o{ POLICIES : "configures"
+  PRODUCTS ||--o{ PRODUCT_FEATURES : "declares"
+  POLICIES ||--o{ LICENSES : "templates"
+  CHANNELS ||--o{ LICENSE_BATCHES : "sources"
+  LICENSE_BATCHES ||--o{ LICENSES : "produces"
+  LICENSES ||--o{ LICENSE_ACTIVATIONS : "activates"
+  DEVICES ||--o{ LICENSE_ACTIVATIONS : "binds"
+  END_CUSTOMERS ||--o{ LICENSES : "holds"
+  LICENSES ||--o{ RENEWALS : "renews"
+  LICENSES ||--o{ NOTIFICATIONS_OUTBOX : "reminds"
+  LICENSES ||--o{ EVENTS : "emits"
+  WEBHOOK_ENDPOINTS ||--o{ WEBHOOK_DELIVERIES : "receives"
+  USERS ||--o{ USER_ROLES : "granted"
+  ROLES ||--o{ USER_ROLES : "contains"
+  ROLES ||--o{ ROLE_PERMISSIONS : "declares"
+
+  TENANTS {
+    uuid id PK
+    text code UK
+    text status
+    jsonb settings
+  }
+  LICENSES {
+    uuid id PK
+    uuid tenant_id FK
+    uuid product_id FK
+    uuid policy_id FK
+    uuid batch_id FK
+    uuid channel_id FK
+    bytea code_hmac UK
+    text status
+    timestamptz expires_at
+    integer version
+  }
+  LICENSE_ACTIVATIONS {
+    uuid id PK
+    uuid license_id FK
+    uuid device_id FK
+    uuid end_customer_id FK
+    text status
+    timestamptz last_seen_at
+  }
+  DEVICES {
+    uuid id PK
+    bytea fingerprint
+    text platform
+    boolean blocked
+  }
+  EVENTS {
+    uuid id PK
+    text type
+    jsonb payload
+    timestamptz published_at
+  }
+  AUDIT_EVENTS {
+    uuid id PK
+    bytea prev_hash
+    bytea entry_hash
+    timestamptz occurred_at
+  }
+  IDEMPOTENCY_KEYS {
+    uuid tenant_id
+    text idem_key
+    text endpoint
+    bytea request_hash
+    text status
+  }
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <h3>Sequence — 授权码完整生命周期</h3>
+        <p class="diagram-desc">发码 → 激活 → 心跳 → 续期 → 吊销，含离线许可签发与 Outbox 事件扇出。</p>
+        <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Ops as 运营或渠道
+  participant A as admin-api
+  participant P as PostgreSQL
+  participant C as client-api
+  participant K as 客户端 SDK
+  participant W as worker
+
+  Ops->>A: POST /admin/v1/batches 带幂等键
+  A->>P: 事务 建批次 与 批量插入 licenses
+  A->>P: outbox batch.completed
+  A-->>Ops: 返回授权码列表
+
+  K->>C: POST /client/v1/activate code 与 device
+  C->>P: 按 code_hmac 定位租户 绕过 RLS
+  C->>P: 切租户 GUC 后 加行锁 SELECT FOR UPDATE
+  C->>P: 插入 device 与 license_activation
+  C->>C: 签发 Ed25519 离线许可
+  C-->>K: client_token 与 offline_license
+
+  K->>C: POST /client/v1/heartbeat Bearer
+  C->>P: 校验 token 与惰性权益判定
+  C->>P: 节流写 last_seen
+  C->>P: 轮换 client_token 5 分钟重叠
+  C-->>K: 新 token 与新离线许可
+
+  Ops->>A: POST /licenses/:id/renew 带幂等键
+  A->>P: 延长 expires_at 与 outbox license.renewed
+
+  Ops->>A: POST /licenses/:id/revoke
+  A->>P: status 置 revoked 并删除 client_token
+  A->>P: outbox license.revoked
+  W->>P: relay 扇出 写入 webhook_deliveries
+  W->>W: HMAC 签名投递 失败退避 熔断保护
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <h3>Integration — 外部集成边界</h3>
+        <p class="diagram-desc">五条出站集成、两条入站协议，以及各自的失败处理。</p>
+        <div class="mermaid">
+graph LR
+  subgraph sg-in["入站协议"]
+    P1["REST 管理面 3001 JWT"]
+    P2["REST 客户端面 3002 码与 token"]
+    P3["REST 开放面 3003 API Key"]
+    P4["REST 门户面 3004 OTP 令牌"]
+  end
+
+  subgraph sg-core["平台核心"]
+    Core["业务服务与 worker"]
+  end
+
+  subgraph sg-out["出站依赖"]
+    PGX[("PostgreSQL 强一致")]
+    RDX[("Redis 缓存与限流")]
+    VX[("Vault 签名")]
+    SMTPX["SMTP 邮件"]
+    SMSX["短信 HTTP 网关"]
+    WHX["客户 Webhook"]
+  end
+
+  P1 --> Core
+  P2 --> Core
+  P3 --> Core
+  P4 --> Core
+  Core --> PGX
+  Core --> RDX
+  Core --> VX
+  Core -->|'失败退避至 dead'| SMTPX
+  Core -->|'失败退避至 dead'| SMSX
+  Core -->|'HMAC 签名 熔断 死信'| WHX
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <h3>Deployment — 运行拓扑</h3>
+        <p class="diagram-desc">基础设施容器化，应用进程直接跑在宿主机上；没有应用镜像。</p>
+        <div class="mermaid">
+graph TB
+  subgraph sg-host["宿主机"]
+    subgraph sg-spa["前端静态/开发服务器"]
+      W1["管理后台 5173"]
+      W2["渠道工作台 5174"]
+    end
+    subgraph sg-node["Node.js 进程"]
+      N1["admin-api 3001"]
+      N2["client-api 3002"]
+      N3["open-api 3003"]
+      N4["portal-api 3004"]
+      N5["worker 无监听端口"]
+      N6["tools CLI 一次性执行"]
+    end
+  end
+
+  subgraph sg-docker["Docker Compose 基础设施"]
+    D1[("PostgreSQL 55432 映射 5432")]
+    D2[("Redis 6379")]
+    D3[("Vault 8200")]
+    D4[("MinIO 9000 可选 profile")]
+    D5[("Kafka 9092 可选 profile")]
+  end
+
+  W1 -->|'vite 代理 /api'| N1
+  W2 -->|'vite 代理 /api'| N1
+  N1 --> D1
+  N2 --> D1
+  N3 --> D1
+  N4 --> D1
+  N5 --> D1
+  N6 --> D1
+  N1 --> D2
+  N2 --> D2
+  N3 --> D2
+  N4 --> D2
+  N2 --> D3
+        </div>
+      </div>
+
+      <div class="card">
+        <p><strong>结构摘要。</strong>CodeGraph 不可用，以下结论基于文件与 grep 证据。</p>
+        <p style="margin-top:0.6rem">系统是单仓多进程的 NestJS 后端 + 两个 Vue3 前端 + 一个零依赖 TS SDK。5 个后端进程（4 个 HTTP API + 1 个 worker）<strong>互不调用</strong>，全部直接连同一个 PostgreSQL（28 张表、18 条 RLS 策略、audit_events 按月分区），并通过同一套 13 个 workspace 包共享领域逻辑。租户隔离由数据库 RLS 强制实施，连接角色 <code>lp_app</code> 为 NOBYPASSRLS；应用侧通过 <code>withTenantTx</code> 注入 <code>app.tenant_id</code> GUC 驱动策略。一致性依赖事务性 Outbox + 幂等键 + 审计哈希链三件套。部署形态是「基础设施容器化、应用进程裸跑」：没有 Dockerfile，也没有编排应用进程的文件。</p>
+      </div>
+    </section>
+
+    <section id="separation-of-concerns">
+      <h2>关注点分离</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>领域规则与传输层分离</strong>
+            <p>状态机（license-state-machine）、权益判定（entitlement）、策略校验（policy-rules）集中在 packages/domain，不依赖 HTTP 或 Kysely，可纯单测。控制器只做 zod 解析与状态码映射，Service 承担编排。这是这套代码里最干净的一层。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>业务编排与持久化细节在 Service 内交织</strong>
+            <p>以 activate.service 为例，一个方法内同时完成：码归一化、HMAC 计算、事务开启、租户 GUC 切换、行锁、设备 upsert、激活记录插入、许可证状态推进、离线许可签发。单测只能整段打桩。激活规则若有第二条入口（如批量导入），复制而不是复用几乎不可避免。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>发码逻辑分散在 admin-api 与 tools 两处</strong>
+            <p>正式发码在 admin-api/batch.service，存量迁移在 apps/tools/migrate.ts 自己重新拼装 licenses 行并直接写库。两处对 feature 的 jsonb 写法、状态映射、租户归属各自维护，已经出现「迁移后产品码被归一化导致激活时报产品不匹配」这类只在一侧修复的缺陷。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="cohesion-and-coupling">
+      <h2>内聚与耦合</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>共享包按能力而非按技术层次划分</strong>
+            <p>keygen（码与加密）、signer（签名）、audit（哈希链）、notify（通道）、idempotency 各自边界清楚，依赖方向单一（notify→db/events/keygen，db→domain/auth）。没有出现 util/common 这类兜底垃圾包。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>licenses 表被全部 5 个后端写读，形成共享数据耦合</strong>
+            <p>统计各服务对表的直接引用：admin-api 触及 licenses 12 处、client-api 4 处、open-api 1 处、portal-api 5 处、worker 3 处。许可证状态机是核心业务对象，却没有单一所有者。任何字段或状态语义变更都要跨 5 个进程协调发布；而它们共享同一个数据库 schema，无法独立回滚。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>workspace 包无版本约束，属「通过共享库紧耦合」</strong>
+            <p>所有包使用 workspace:* 且始终一起构建（tsc -b）。改一个包的公开类型会立刻波及全部 5 个应用。当前由单人维护尚可，一旦多人协作，一次包内破坏性变更就会阻塞所有人的发布。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="layered-architecture">
+      <h2>分层架构</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>依赖方向基本一致：应用 → 共享包 → 基础设施</strong>
+            <p>packages/domain 零依赖；packages/db 依赖 domain 与 auth；应用层依赖包。没有出现 domain 反向依赖 HTTP 或 Kysely 的情况，tsc 项目引用也把这层关系固化成了编译期约束。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>数据库行类型直接充当对外 API 契约</strong>
+            <p>LpDb 里手写的 xxxRow 接口同时用于 Kysely 查询与 DTO 组装。例如 licenses 的 features 列声明为 string[]，但写入时必须 JSON.stringify 再 as unknown as string[]（batch.service 里有明确注释）。类型系统在这里说了谎，跨层泄漏的代价是每个写入点都要靠注释和强制转换维持正确。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>基础设施细节出现在应用服务里</strong>
+            <p>activate/heartbeat 直接调用 setTenantGuc / setBypassRls 控制数据库会话状态，Redis ZSET 键名（lp:seats:、lp:conc:）也硬编码在业务方法内。更换缓存或加入第二个数据库会话模型时，业务代码需要跟着改。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="hexagonal-architecture-ports-and-adapters">
+      <h2>六边形架构 / 端口与适配器</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>签名与通知已做成可替换适配器</strong>
+            <p>SignerProvider 有 LocalSignerProvider 与 VaultSignerProvider 两种实现，由 SIGNER_PROVIDER 配置切换；通知侧 NotificationChannel 抽象出 email 与 sms，SMTP、HTTP 网关、Console 三个实现可注入。这两处是本系统最接近端口/适配器模式的样板，测试也据此打桩。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>持久化没有端口，Kysely 直接出现在每个服务构造函数里</strong>
+            <p>服务通过 @Inject(DB) 拿到 Kysely 实例并直接拼查询。这意味着换存储、或为迁移工具/批量作业提供第二种数据源，都必须修改业务类本身。存储适配器这层抽象是缺失的，而它恰恰是这套系统耦合度最高的一环。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="scalability">
+      <h2>可扩展性</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>HTTP 服务基本无状态，可水平扩容</strong>
+            <p>会话状态放在数据库（refresh_tokens、client_tokens），共享缓存放 Redis，登录限流已迁到 Redis 跨副本共享，JWT 验签用非对称密钥。四个 API 理论上可以起多副本。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>worker 是单进程单线程串行节拍</strong>
+            <p>worker 每 5 秒串行执行过期扫描、outbox relay、webhook 投递、到期提醒入队、通知投递五件事，共用一个 Kysely 连接池。任何一步变慢都会推迟其余。批量 5000 条以上时，单次 tick 可能超过 5 秒，形成排队。也没有多副本互斥机制。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>投递扫描缺少 SKIP LOCKED 抢占</strong>
+            <p>dispatcher 与 notify 投递器先查询再逐条更新，注释明确写了「单实例语义，多副本需 FOR UPDATE SKIP LOCKED」。这直接封顶了投递吞吐，也使 worker 无法水平扩展。</p>
+          </div>
+        </div>
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>租户维度已具备数据分区基础</strong>
+            <p>所有业务表以 tenant_id 为隔离键，audit_events 已按月分区。未来按租户分库或分片时，隔离键现成可用，不需要重新设计数据模型。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="observability">
+      <h2>可观测性</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>审计链提供了业务级的可追溯性</strong>
+            <p>关键写操作同事务写 audit_events，entry_hash = sha256(prev_hash + canonical(entry))，用 pg_advisory_xact_lock 串行化同链写入防止分叉，并提供验链接口。备份演练也会重算整条链。这是比日志强得多的取证能力。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>没有指标，也没有 worker 健康探测</strong>
+            <p>四个 API 有 /healthz，但 worker 完全无监听端口，进程是否在跑只能靠看日志。系统没有任何 metrics 端点（无 Prometheus、无延迟/错误率/QPS 指标），也没有追踪 ID 贯穿。线上出现「通知不再发出」「过期没有生效」这类故障时，无法从指标发现问题，只能等用户投诉。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>日志是散落的 console 输出，无结构化字段</strong>
+            <p>全仓使用 console.log/warn/error 拼接模板字符串（如 [webhook] delivery 301 attempt=2 retry fetch failed）。没有日志级别控制（LOG_LEVEL 环境变量已定义但未见实际过滤）、没有 JSON 结构、没有统一 request_id 注入日志。多进程混在一个终端时难以区分来源。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="security">
+      <h2>安全</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>租户隔离在数据库层强制实施，而非仅靠应用判断</strong>
+            <p>所有含 tenant_id 的表执行 force row level security，连接角色 lp_app 为 NOBYPASSRLS 非超级用户。策略统一为 bypass_rls=on 或 tenant_id = lp_current_tenant_id()，且该函数对非法 GUC 值返回 NULL（空串陷阱已处理）。即使某条业务 SQL 忘了带租户条件，也拿不到跨租户数据。</p>
+          </div>
+        </div>
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>凭据与敏感字段的存储方式合理</strong>
+            <p>口令 scrypt 加盐哈希；refresh token 只存 SHA-256 摘要并支持轮换与吊销；API Key 明文仅返回一次、比对用常数时间比较；授权码明文用 AES-256-GCM 加密并另存 HMAC 索引；Webhook secret 加密落库；手机号以 HMAC 存储不可逆；邮箱 AES 加密且审计只记 has_email。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>渠道账号没有渠道级数据边界（对象级越权）</strong>
+            <p>0007 引入 partner 角色，授予 license:issue、license:read、batch:read，但 user_roles 表只有 (user_id, role_code) 两列，没有任何渠道绑定；LicenseService.list 只按 tenant 过滤，没有 channel_id 条件；创建批次时 channel_id 直接取自请求体且不校验归属。结果是：一个渠道账号能读取同租户下全部授权码，也能把码发到别人的渠道下。这属于 OWASP A01 越权访问，且发生在一个本应被隔离的对外角色上。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>RLS 的旁路是一个运行时开关</strong>
+            <p>withSystemTx / setBypassRls(true) 会关闭租户策略，用于「先用 code_hmac 定位租户」这类必须跨租户的查询。这类代码路径散落在 activate、heartbeat、portal、open-api 中。缺少结构性约束（如只允许特定包调用），未来新增一个忘记切回租户上下文的接口，就会静默地把全库数据暴露给单个租户的调用方。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>渠道工作台复用管理端 API 与同一套令牌体系</strong>
+            <p>partner-web 的 baseURL 是 /api，代理到 admin-api 3001，与管理后台共用登录、刷新、权限体系。对外合作方因此获得了管理端全部路由的可见面，任何一处 RequirePerms 标注遗漏都会直接暴露给渠道账号。更稳妥的做法是为合作方提供独立入口与更窄的路由集合。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>JWT 私钥存本机文件目录</strong>
+            <p>AUTH_JWT_KEYS_DIR 默认 ./data/keys，多副本部署时需要共享卷或改用 KMS/Vault。README 已把它列为已知简化项，但仍属上线前必须闭合的安全项：多副本各自生成密钥会导致令牌互不认可。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="reliability">
+      <h2>可靠性</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>外部依赖失效时有多级降级</strong>
+            <p>Redis 不可用时：validate 缓存退化为直查数据库，登录限流退化为进程内计数，席位统计跳过并由 DB last_seen 兜底，RBAC 权限缓存直落数据库。PostgreSQL 连接池挂了 idle client error 监听，避免单个空闲连接错误击穿进程。这些降级都有注释说明取舍。</p>
+          </div>
+        </div>
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>投递链路具备退避、死信与熔断三层保护</strong>
+            <p>Webhook 按 1m/5m/30m/2h/6h/12h 退避至死信；端点级熔断以 60 秒窗口失败率 ≥50% 且样本 ≥10 判定，冷却 1m→5m→15m→1h 指数增长，熔断期间停止扇出新投递以避免死信堆积，管理端可人工恢复。通知通道同样有退避与 dead 终态。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>worker 是全部异步能力的单点</strong>
+            <p>许可证过期扫描、未激活超期、Outbox relay、Webhook 投递、到期提醒、通知发送全部依赖这一个进程。它没有健康检查、没有副本、没有重启策略（裸进程 + nohup）。进程一旦退出：过期许可证不会失效、取消的授权会继续可用、提醒邮件不再发出——而这些都不会触发任何告警。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>单一数据库实例，无高可用</strong>
+            <p>Compose 里是单实例 PostgreSQL，没有流复制或故障转移。数据库停机即全站不可用。README 已将其列入后续阶段，但在「真上线给学校用」的前提下，这决定了任何一次数据库维护都意味着停服窗口。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="resilience">
+      <h2>韧性</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>备份恢复已被真实演练证明，而非仅存在备份文件</strong>
+            <p>apps/tools/backup 用 pg_dump 自定义格式导出，同时单独导出角色（pg_dump 不含角色），恢复时重放应用授权，并按行数、迁移版本、lp_app 授权数、审计链四项校验。backup drill 会自建临时库、恢复、比对、验链、清理。演练中发现并修复了两个真实缺陷：分区父表 audit_events 未被计入行数、--no-privileges 导致 132 条授权全部丢失。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>没有 RTO/RPO 定义，也没有定期演练机制</strong>
+            <p>演练能力已具备，但没有写入运维手册的恢复时间目标、可接受数据丢失窗口，也没有定时任务保证它被周期性执行。备份目录默认落在本机 data/backups，与数据库同盘：磁盘故障会同时丢失数据与备份。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>重试可能放大故障</strong>
+            <p>客户端 SDK 对 5xx 与网络错误退避重试 3 次，服务端 webhook 退避至 6 次。若下游长时间不可用，重试流量叠加在已经过载的下游上。端点熔断缓解了 webhook 这一侧，但客户端侧没有整体性限制，且缺少抖动（jitter），多客户端可能同步重试形成尖峰。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="data-architecture">
+      <h2>数据架构</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>一致性模型明确：强一致写入 + 事务性 Outbox + 幂等键</strong>
+            <p>业务写与事件写在同一事务（events 表），由 relay 异步扇出，避免双写不一致；写接口带幂等键并以请求体哈希检测冲突；状态机对非法迁移穷举拒绝。这套组合让「重复请求」与「事件丢失」两类问题都有明确答案。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>幂等记录与业务写分属两个事务</strong>
+            <p>packages/idempotency 的注释已明示这一取舍：幂等行先占位，业务写随后提交。若进程在两者之间崩溃，会留下 processing 行（10 分钟后视为陈旧锁），客户端重试会重新占位。多数场景可被状态机与唯一约束兜住，但对「批量发码」这类不可重入操作，缺乏事务级保证意味着需要人工核对。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>数据所有权不清晰：同一实体五方读写</strong>
+            <p>licenses 被 5 个后端进程直接读写，license_activations 被 4 个读写。缺少「谁是该实体的写方」的约定，意味着状态推进逻辑可能在不同服务里各写一份，行为漂移只是时间问题。这与多租户小节中的边界问题是同一根因。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>保留与归档策略只覆盖审计表</strong>
+            <p>audit_events 已按月分区（当前 16 个分区关系），但分区维护者（partition-keeper）尚未实现，也没有定义保留期限与归档动作。notification_outbox、webhook_deliveries、events、idempotency_keys 都是只增不减的表，长期运行会持续增长且没有清理策略。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="cost-efficiency-finops">
+      <h2>成本效率</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>单机形态的资源占用与业务量匹配</strong>
+            <p>数据库当前约 10 MB，全部服务 + 基础设施可在一台机器上运行。发码采用分批插入（默认 2000 条一批），心跳 last_seen 写入按心跳间隔的一半节流，说明作者对写放大有意识。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>缺少成本可观测性与租户级配额</strong>
+            <p>没有资源使用指标，无法按租户归集成本。多租户小节提到的 noisy-neighbor 问题在这里同样成立：单个租户批量发码 10 万条会占满数据库 IO 与 worker 节拍，而系统没有按租户的速率或并发上限。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="operability">
+      <h2>可运维性</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>运维手册与一键命令齐备</strong>
+            <p>docs/OPERATIONS.md 覆盖上线清单、备份恢复、密钥轮换、常见故障；package.json 提供 db:migrate、seed:users、key:rotate、backup、backup:drill、smoke 等命令；CI 覆盖构建、单测、迁移、e2e、回滚校验。这套东西让非原作者具备了初步接手能力。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>应用进程靠手工 nohup 启动，且本次会话已因此出过事故</strong>
+            <p>dev 脚本用 concurrently 拉起全部进程，但生产向的 start:* 是逐个 node 命令，没有守护、没有重启策略、没有开机自启。审计过程中就发生过：client-api 与 open-api 停留在旧构建上运行（进程 13:03 启动，构建 13:43 完成），导致已修复的缺陷在线上不生效，且没有任何机制发现这一点。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>没有告警策略与故障响应归属</strong>
+            <p>手册描述的是「怎么操作」，没有定义「出问题谁来处理、什么条件触发、如何通知」。结合没有指标这一事实，当前只能依赖人工发现故障。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="deployment-architecture">
+      <h2>部署架构</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>CI 覆盖了关键质量门</strong>
+            <p>.github/workflows/ci.yml 在每次 push/PR 执行：安装 → 构建 → 单测 → 迁移（新库）→ e2e → 回滚后再迁移。最后一步尤其有价值，它保证迁移双向可逆，避免线上回滚时卡在 schema 上。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>没有应用镜像，部署不可复现</strong>
+            <p>仓库内没有 Dockerfile（基础设施有 compose，应用没有镜像）。部署方式是在宿主机装好 Node 与 pnpm、拉代码、构建、手工启动进程。这意味着：环境无法从制品复现、回滚需要重新构建、不同机器上 Node 版本差异可能引入行为差异。对「交付给学校长期运行」的场景，这是最大的部署风险。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>无 IaC、无环境分层、无灰度</strong>
+            <p>除 compose 外没有基础设施即代码；没有 dev/staging/prod 的环境定义与晋升流程；发布是整体替换，没有蓝绿或灰度。回滚依赖「重新检出上一个提交并重新构建」，没有记录部署版本。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="event-architecture">
+      <h2>事件架构</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>Outbox 模式保证了事件与业务写的一致性</strong>
+            <p>事件写入与业务操作同事务（events 表），relay 异步发布并打点 published_at，扇出到 webhook_deliveries 时以 (endpoint_id, event_id) 唯一键去重。投递失败有退避、死信与端点熔断。这比在业务代码里直接发消息可靠得多。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>事件契约无版本、无 schema 治理</strong>
+            <p>KNOWN_EVENTS 是一组字符串常量，payload 为自由 jsonb。没有事件版本字段、没有 schema 定义、没有消费者驱动的契约测试。Webhook 订阅方一旦依赖某个 payload 形状，改字段就是破坏性变更，而系统无从发现。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>relay 是单消费者，且事件无法重放</strong>
+            <p>relay 只打点与扇出，内部消费者（通知、统计等）未来接入时需要各自轮询同一批未发布事件，缺少订阅偏移量概念。published_at 一旦写入，事件就没有重放路径；补偿只能人工构造。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ai-architecture">
+      <h2>AI 架构</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">No material findings</span>
+          <div class="finding-text">
+            <strong>No material findings</strong>
+            <p>本系统不含模型调用、提示词、向量检索或推理链路，该维度无适用证据。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="multi-tenancy">
+      <h2>多租户</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>四层租户强制，且唯一可信来源是 JWT 到数据库</strong>
+            <p>JWT 携带 tid；requireTenantId 只认服务端解析出的租户，明确拒绝请求体与查询参数里的 tenant_id；每次事务注入 app.tenant_id GUC；数据库 RLS 兜底。超管必须通过 X-Tenant-Id 显式切换。这套设计让「参数注入租户 ID」这类常见越权失效。</p>
+          </div>
+        </div>
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>共享缓存的键都带租户维度</strong>
+            <p>validate 缓存、RBAC 权限缓存、席位与并发 ZSET、登录限流键均以租户或用户为隔离前缀，没有出现跨租户共享可变状态的情况。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>租户内缺乏二级隔离：渠道与组织共用一个平面</strong>
+            <p>系统实为两级数据主体（租户下的渠道、租户下的终端组织），但隔离机制只有租户这一级。渠道账号可读全租户授权码、可跨渠道发码；组织门户的角色边界靠业务查询而非数据约束。随着渠道数量增长，越权面会同步扩大。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>没有按租户的配额与限流</strong>
+            <p>批量发码上限是全局常量（默认 10 万），validate 限流按 API Key 而非租户，没有租户级 QPS 或并发上限。单租户的大批量操作会影响同实例上其他租户的响应时间。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture-governance">
+      <h2>架构治理</h2>
+      <div class="findings">
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>关键决策只存在于 README 与代码注释中</strong>
+            <p>「为什么用共享数据库而不是服务拆分」「为什么幂等跨两个事务」「为什么 worker 单实例」这类决策，理由分散在 README 的简化说明和源码注释里，没有独立的 ADR。设计文档在仓库外，新人接手时需要靠考古。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>仓库未纳入版本控制</strong>
+            <p>当前目录没有 .git。所有架构演进的轨迹、变更理由、责任归属都无法追溯，回滚也没有基准点。对一个即将交付给他方长期运营的系统，这是治理层面必须先补齐的前提。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="domain-architecture">
+      <h2>领域架构</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>按业务能力而非技术层次切分服务</strong>
+            <p>admin-api（运营管理）、client-api（客户端激活与心跳）、open-api（业务系统校验）、portal-api（终端客户自助）各自对应明确的业务角色与调用方，不是 controller/service/repository 式的横向切分。这个边界是合理的。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>「许可」这个聚合被四个限界上下文同时持有</strong>
+            <p>激活、心跳、校验、续期、吊销本应围绕同一个聚合根（license）推进状态，但它们的写入逻辑分散在 client-api（激活/心跳）、admin-api（续期/吊销）、portal-api（组织激活/解绑）。缺少聚合根的唯一归属，状态迁移规则就会在多处实现。</p>
+          </div>
+        </div>
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>领域语言在代码中保持一致</strong>
+            <p>license、activation、policy、batch、channel、end_customer、entitlement 等术语在数据库、领域包、API 路径与前端中含义统一，没有出现同物异名。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="api-architecture">
+      <h2>API 架构</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>错误模型统一，且错误码可被客户端程序化处理</strong>
+            <p>全站返回 { error: { code, message, details, request_id } }，领域错误码集中定义（LIC_REVOKED、LIC_PRODUCT_MISMATCH、AUTH_REQUIRED、RATE_LIMITED 等）。zod 校验失败统一映射为 REQ_INVALID 并附字段级 issues。SDK 据此实现 401 静默重激活等行为。</p>
+          </div>
+        </div>
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>写接口具备幂等契约</strong>
+            <p>发码、续期、吊销等要求幂等键，同键同体重放返回首次响应并标记 replayed，同键不同体返回 409。SDK 与 smoke 都覆盖了重放路径。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>版本化仅靠路径 /v1，没有兼容性策略</strong>
+            <p>四类 API 都以 /v1 前缀版本化，但没有定义弃用窗口、字段增删的兼容规则，也没有消费者驱动的契约测试。SDK 与 Webhook 消费者都直接依赖当前响应形状。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>分页与过滤能力不一致</strong>
+            <p>licenses 用 limit 且默认 50、上限 200，没有游标；audit-events、webhook-deliveries 各自参数不同；批次列表与渠道报表过滤条件各异。清单页在数据量增长后会遇到「只能看最近 N 条」的瓶颈。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture-fitness-metrics">
+      <h2>架构适应度指标</h2>
+      <div class="findings">
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>依赖方向由 tsc 项目引用保证，但没有专门的架构测试</strong>
+            <p>tsconfig references 客观上约束了包之间不能随意互相引用，这是有效的编译期护栏。但没有测试断言「domain 不得导入 db」「应用不得直接拼跨租户 SQL」这类规则，也没有耦合度或复杂度指标。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>本次审查发现的两类缺陷都可以转成自动化检查</strong>
+            <p>「RLS 旁路调用点」可用静态检查限定可调用位置；「渠道越权」可写成参数化 e2e（用 partner 令牌访问其他渠道数据应 403）。当前这两条都只靠人工审查发现，下一次改动仍可能重现。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="common-anti-patterns">
+      <h2>常见反模式</h2>
+      <div class="findings">
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>共享数据库作为集成总线</strong>
+            <p>5 个后端进程直接读写同一批表（licenses 被 5 方引用、license_activations 被 4 方引用），没有服务间 API 或事件契约。这正是「Shared Database as Integration Hub」：边界只存在于目录结构里，数据库才是真正的集成点。后果是隐式耦合——一处 schema 或状态语义变更会波及全部服务，且无法独立部署或回滚。对当前单机交付形态而言这是有意识的简化，但它设定了系统的扩展上限。</p>
+          </div>
+        </div>
+        <div class="finding risk">
+          <span class="badge badge-risk">Risk</span>
+          <div class="finding-text">
+            <strong>合作伙伴入口缺少独立边界（准 Distributed Monolith 风险）</strong>
+            <p>partner-web 与 admin-web 共用 admin-api、共用令牌体系、共用路由集合。合作方与管理员的权限差异只体现在 role_permissions 的几行数据上，而不是架构边界上。一旦路由级鉴权漏标，合作方即刻获得管理员能力。增加任何新管理接口都要重复评估它对 partner 的可见性。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>数据库行类型直接充当对外契约（Leaky Abstraction）</strong>
+            <p>LpDb 的行接口既是持久化类型又参与 API 组装，jsonb 字段以 string[] 声明却在写入时 JSON.stringify。底层存储细节通过类型与注释泄漏到上层，替换存储或调整列类型时需要逐点修改。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="testability">
+      <h2>可测试性</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>依赖注入与纯领域层让单测成本很低</strong>
+            <p>Nest 构造注入使 DB、Redis、Signer 都可替换；domain 包无副作用可纯单测；SDK 用进程内 stub server 覆盖激活/心跳/轮换/时钟回拨；通知与签名适配器可打桩。当前单测 55 项、e2e 33 项，覆盖了并发激活、幂等重放、跨副本限流、熔断阶梯等难点。</p>
+          </div>
+        </div>
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>e2e 使用真实 PostgreSQL 且串行执行</strong>
+            <p>e2e 连真实库而非 mock，能捕获 RLS、约束、事务隔离这类只在真库暴露的问题；vitest 配置 fileParallelism: false 避免共享库竞争。备份演练更进一步，验证的是「恢复后真的能用」而不是「文件存在」。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>测试间共享数据库状态，依赖人工清理顺序</strong>
+            <p>多个 e2e 各自 deleteFrom 若干表，清理顺序与外键、分区、种子数据相互影响。本次审查中已出现「清理按整表删除把种子租户一并清空」「分区父表未计入行数」这类由测试基础设施引起的问题。缺少每个用例独立 schema 或事务回滚的隔离手段。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>时序相关路径缺少可控时钟</strong>
+            <p>退避重试、熔断冷却、离线许可过期判定、时钟回拨守卫都依赖真实时间。测试通过手工改写数据库中的时间字段绕过，而不是注入时钟。这类测试在 CI 慢速环境下存在偶发失败风险。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="evolvability">
+      <h2>可演进性</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>策略与产品已数据化，新增商业形态不需要改代码</strong>
+            <p>policy 表覆盖试用/标准/永久/订阅/浮动五种 kind，device_limit、seat_limit、concurrency_limit、offline_window_days 等均为数据字段，kind='floating' 还有数据库级 check 约束。新增套餐属于配置操作。</p>
+          </div>
+        </div>
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>扩展点明确：签名 provider 与通知 channel</strong>
+            <p>增加新的 KMS 或新的通知渠道，只需实现既有接口并在工厂中注册，业务代码不变。双 kid 轮换也做成了 provider 数组，属于可演进设计的正面样本。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>新增一个调用方需要改数据库 schema</strong>
+            <p>因为集成点是共享表而不是契约，新增「渠道」角色只需插入 role_permissions 几行（好），但要求渠道级数据隔离就需要给 user_roles 加列、给多张表的查询加过滤、补 RLS 策略（重）。演进的成本与改动面强耦合于数据库。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>数据库迁移是唯一的结构演进通道，且被多方共享</strong>
+            <p>6 个迁移文件线性叠加，回滚只支持退一步。多服务共享 schema 意味着一次迁移同时影响全部进程，无法灰度。当前 0001 的 down 段是 drop 全部对象，回滚即毁库，实际上不可用。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="architectural-smells-codebase-review-only-not-applicable-in-design-review">
+      <h2>架构坏味道</h2>
+      <div class="findings">
+        <div class="finding strength">
+          <span class="badge badge-strength">Strength</span>
+          <div class="finding-text">
+            <strong>没有出现上帝服务或智能 UI</strong>
+            <p>最大的业务服务是 batch.service 与 activate.service，各自聚焦单一能力；前端只做展示与调用，业务规则在服务端（策略校验、席位判定、配额账本均不在浏览器里）。领域层不是贫血模型，状态迁移与权益判定都有实际行为。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>部分服务承担了超出其边界的职责</strong>
+            <p>admin-api 同时承载 IAM、RBAC、产品目录、发码、续期、吊销、设备解绑、报表、API Key、Webhook、审计、组织联系人。它是事实上的后台综合体，也是渠道工作台复用的入口。这个体量使任何一处鉴权疏漏的影响面都被放大。</p>
+          </div>
+        </div>
+        <div class="finding concern">
+          <span class="badge badge-concern">Concern</span>
+          <div class="finding-text">
+            <strong>缺少防腐层：迁移工具直接拼装目标库行</strong>
+            <p>apps/tools/migrate.ts 自己构造 licenses/policies/products 的插入对象，依赖旧 SQLite 的字段语义。旧格式变更或目标 schema 变更时，这段代码需要同步修改，且它的正确性只能靠 fixture 测试守住。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="recommended">
+      <h2>建议架构</h2>
+
+      <div class="diagram-card">
+        <h3>目标：显式服务边界（在现有单机形态下先做契约化）</h3>
+        <p class="diagram-desc">不立即拆分服务，而是先明确每张核心表的单一写方，让共享数据库从「隐式集成点」变成「有主的数据资产」。</p>
+        <div class="mermaid">
+graph LR
+  subgraph sg-w["写方 · 单一所有者"]
+    W1["admin-api 拥有 licenses 创建与状态"]
+    W2["client-api 拥有 activations 与 tokens"]
+    W3["portal-api 拥有 end_customers 与自助解绑"]
+    W4["worker 拥有 deliveries 与 outbox 消费"]
+  end
+
+  subgraph sg-r["读方 · 只读或走接口"]
+    R1["open-api 只读许可证"]
+    R2["partner 经受限接口"]
+  end
+
+  subgraph sg-d["共享数据资产"]
+    DB2[("licenses 单一写方 admin-api")]
+    DB3[("activations 写方 client-api 与 portal-api 经接口")]
+  end
+
+  W1 --> DB2
+  W2 --> DB3
+  W3 -->|'调用契约而非直写'| W2
+  R1 -.->|'只读投影'| DB2
+  R2 -.->|'受限查询接口'| W1
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <h3>目标：渠道与合作伙伴的独立边界</h3>
+        <p class="diagram-desc">为 partner 引入渠道绑定与独立入口，使其可查询的数据由数据层约束，而非由查询条件约束。</p>
+        <div class="mermaid">
+graph TB
+  PartnerAcc(["渠道账号"])
+  PartnerUI["渠道工作台 独立入口"]
+  PartnerSvc["partner 服务<br/>渠道范围由会话决定"]
+
+  subgraph sg-scope["渠道范围强制"]
+    S1["会话携带 channel_id"]
+    S2["查询自动附加 channel 过滤"]
+    S3["发码强制归属本渠道"]
+    S4["RLS 二级策略或独立视图"]
+  end
+
+  DBx[("licenses 按 channel 过滤")]
+
+  PartnerAcc --> PartnerUI
+  PartnerUI --> PartnerSvc
+  PartnerSvc --> S1
+  S1 --> S2
+  S1 --> S3
+  S2 --> DBx
+  S3 --> DBx
+  S4 -.-> DBx
+        </div>
+      </div>
+
+      <div class="card recommendations">
+        <ol>
+          <li><strong>补齐渠道级数据边界（最高优先，属安全缺陷）</strong> — 给 user_roles 或 users 增加 channel_id 绑定；LicenseService.list 与批次创建按会话渠道过滤；对跨渠道访问返回 403 而非静默放行。补一条参数化 e2e：用 partner 令牌访问他人渠道数据必须失败。这是本次审查发现的唯一一处可直接越权的问题。</li>
+          <li><strong>为 worker 增加可观测性与守护</strong> — 提供 /healthz（含最近一次 tick 时间、待投递积压数、熔断端点数），并由进程管理器（systemd / pm2 / docker restart 策略）守护。没有这一项，「通知不再发出」「过期未生效」这类故障无法被发现。</li>
+          <li><strong>建立应用制品与可复现部署</strong> — 为 4 个 API 与 worker 各建 Dockerfile（或多阶段统一镜像按 entrypoint 区分），用 compose 编排应用进程，镜像打版本号。当前裸进程 + nohup 的形态已经导致过线上跑旧代码的事故，且无法回滚。</li>
+          <li><strong>把 RLS 旁路收拢成受控能力</strong> — 将 setBypassRls 的使用限制在少数明确的「按码定位租户」函数内（例如 db 包导出的 resolveTenantByCodeHmac），业务服务不直接调用；补一条静态检查或 lint 规则防回归。</li>
+          <li><strong>给核心表指定单一写方并文档化</strong> — 明确 licenses 由 admin-api 创建与推进状态，激活记录由 client-api 写，门户的自助操作经内部契约调用而非直写。先作为约定写入 ADR 并由 code review 执行，再逐步用类型或接口固化。</li>
+          <li><strong>补齐可观测性基线</strong> — 引入结构化日志（JSON + request_id + service 名 + tenant 摘要），暴露 Prometheus 指标（请求量/延迟/错误率、投递积压、熔断状态、tick 耗时、迁移版本），配置最少三条告警：worker 停止、投递死信激增、登录失败率异常。</li>
+          <li><strong>定义并演练 RTO/RPO</strong> — 在运维手册中写明恢复时间与数据丢失窗口目标；备份目录移出数据库所在磁盘（异地或对象存储）；用系统定时任务每日跑 backup drill 并在失败时告警，把它从「一次性验证」变成持续保证。</li>
+          <li><strong>补齐数据保留与分区维护</strong> — 实现 partition-keeper 自动创建未来月份分区；为 audit_events、events、webhook_deliveries、notifications_outbox、idempotency_keys 定义保留期限与清理作业。</li>
+          <li><strong>消除测试基础设施的共享状态</strong> — 每个 e2e 用例使用独立 schema（或事务回滚），避免「整表删除误伤种子数据」这类问题重复发生；为时间敏感路径注入可控时钟。</li>
+          <li><strong>补 ADR 与版本控制</strong> — 仓库尚未纳入 git，先建立基线提交；随后把「共享数据库而非服务拆分」「幂等跨事务」「worker 单实例」等关键取舍写成 ADR，与设计文档一并入仓。</li>
+          <li><strong>事件契约治理（中期）</strong> — 为 events 增加 schema 版本字段，定义 payload 兼容规则；webhook 订阅方公告弃用窗口。这是引入 Kafka 多消费者之前的前置条件。</li>
+          <li><strong>保留已验证的强项</strong> — 数据库层 RLS 强制、审计哈希链、Outbox + 幂等键、双 kid 轮换、备份演练的四维校验，都是本系统最有价值的结构性资产。任何重构都应保住这些属性，而不是为了「微服务化」把它们拆散。</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h3>迁移顺序建议</h3>
+        <p><strong>第一优先（安全与可运维，先做）</strong>：第 1、2、3 项。它们分别对应一条可越权路径、一个无法观测的单点、一个已经出过事故的部署方式，都是「上线前必须闭合」而非「以后优化」。</p>
+        <p style="margin-top:0.6rem"><strong>第二优先（可观测与恢复能力）</strong>：第 4、6、7、8 项。这些不改变业务行为，风险低，但决定了故障是否可发现、数据是否可恢复。</p>
+        <p style="margin-top:0.6rem"><strong>第三优先（结构性调整）</strong>：第 5、11 项。在单机交付阶段，先以「单一写方约定 + ADR」的低成本形式落地，不必真的拆分服务；等出现第二个团队或单实例承载不足时，再把约定升级为物理边界。</p>
+        <p style="margin-top:0.6rem"><strong>持续项</strong>：第 9、10、12 项。测试隔离与 ADR 是日常习惯，应随每次改动推进。</p>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>

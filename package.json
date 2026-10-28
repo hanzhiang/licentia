@@ -1,0 +1,51 @@
+{
+  "name": "license-platform",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "cross-env TEST_DATABASE_URL=postgresql://lp_app:lp@localhost:55432/lp vitest run test/e2e apps/tools/src",
+    "db:migrate": "tsx packages/db/src/bin/migrate.ts up",
+    "db:rollback": "tsx packages/db/src/bin/migrate.ts down",
+    "seed:users": "tsx packages/db/src/bin/seed-users.ts",
+    "key:rotate": "tsx packages/signer/src/bin/rotate.ts",
+    "migrate:legacy": "tsx apps/tools/src/main.ts",
+    "compose:up": "docker compose -f deploy/docker-compose.yml up -d",
+    "compose:down": "docker compose -f deploy/docker-compose.yml down",
+    "dev": "pnpm --silent build && concurrently -k -n tsc,client,admin,open,portal,worker,web -c cyan,green,yellow,blue,white,magenta,grey \"tsc -b --watch\" \"node --watch apps/client-api/dist/main.js\" \"node --watch apps/admin-api/dist/main.js\" \"node --watch apps/open-api/dist/main.js\" \"node --watch apps/portal-api/dist/main.js\" \"node --watch apps/worker/dist/main.js\" \"pnpm --filter lp-web dev\"",
+    "dev:web": "pnpm --filter lp-web dev",
+    "build:web": "pnpm --filter lp-web build",
+    "dev:partner": "pnpm --filter lp-partner-web dev",
+    "build:partner": "pnpm --filter lp-partner-web build",
+    "start:partner": "pnpm --filter lp-partner-web preview -- --host 0.0.0.0 --port 5174",
+    "start:client": "node apps/client-api/dist/main.js",
+    "start:admin": "node apps/admin-api/dist/main.js",
+    "start:open": "node apps/open-api/dist/main.js",
+    "start:portal": "node apps/portal-api/dist/main.js",
+    "start:worker": "node apps/worker/dist/main.js",
+    "smoke": "bash scripts/smoke.sh",
+    "client:demo": "tsx examples/node-client/activate.ts",
+    "backup": "tsx apps/tools/src/backup-cli.ts",
+    "backup:create": "tsx apps/tools/src/backup-cli.ts create",
+    "backup:verify": "tsx apps/tools/src/backup-cli.ts verify",
+    "backup:restore": "tsx apps/tools/src/backup-cli.ts restore",
+    "backup:drill": "tsx apps/tools/src/backup-cli.ts drill"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.0.0",
+    "cross-env": "^7.0.3",
+    "kysely": "^0.27.4",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.1"
+  }
+}

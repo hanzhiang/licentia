@@ -1,0 +1,174 @@
+<template>
+  <el-container class="shell">
+    <el-aside width="216px" class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">LP</span>
+        <span>许可控制台</span>
+      </div>
+      <el-menu router :default-active="$route.path" class="nav">
+        <el-menu-item-group title="授权运营">
+          <el-menu-item index="/licenses">授权码</el-menu-item>
+          <el-menu-item v-if="auth.can('product:write')" index="/catalog">产品与策略</el-menu-item>
+          <el-menu-item v-if="auth.can('license:issue')" index="/batches">批量发码</el-menu-item>
+          <el-menu-item v-if="auth.can('end_customer:write')" index="/customers">终端客户</el-menu-item>
+          <el-menu-item v-if="auth.can('report:read')" index="/reports">渠道报表</el-menu-item>
+        </el-menu-item-group>
+        <el-menu-item-group title="平台治理">
+          <el-menu-item v-if="auth.can('audit:read')" index="/audit">审计日志</el-menu-item>
+          <el-menu-item v-if="auth.can('apikey:write')" index="/apikeys">API Key</el-menu-item>
+          <el-menu-item v-if="auth.can('webhook:write')" index="/webhooks">Webhook</el-menu-item>
+        </el-menu-item-group>
+      </el-menu>
+    </el-aside>
+    <el-container>
+      <el-header class="header">
+        <div>
+          <strong>{{ auth.user?.email }}</strong>
+          <span class="role">{{ auth.user?.actor_type }}</span>
+        </div>
+        <el-button link type="danger" @click="logout">退出登录</el-button>
+      </el-header>
+      <el-main class="main">
+        <router-view />
+      </el-main>
+    </el-container>
+  </el-container>
+</template>
+
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuth } from '../store';
+import { api } from '../api';
+
+const auth = useAuth();
+const router = useRouter();
+
+async function refreshProfile(): Promise<void> {
+  try {
+    const { data } = await api.get('/admin/v1/auth/me');
+    auth.setUser(data.data.user);
+  } catch {
+    /* 401 由 axios 拦截器统一退出 */
+  }
+}
+
+function authUpdated(event: Event): void {
+  const user = (event as CustomEvent).detail;
+  if (user) auth.setUser(user);
+}
+
+onMounted(() => {
+  window.addEventListener('lp-auth-updated', authUpdated);
+  void refreshProfile();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('lp-auth-updated', authUpdated);
+});
+
+async function logout(): Promise<void> {
+  try {
+    const refresh = localStorage.getItem('lp_refresh');
+    if (refresh) await api.post('/admin/v1/auth/logout', { refresh_token: refresh });
+  } catch {
+    /* 忽略 */
+  }
+  auth.logout();
+  await router.push('/login');
+}
+</script>
+
+<style scoped>
+.brand {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid #e7ebee;
+  font-weight: 650;
+  color: #1f2937;
+}
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: #167d7f;
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.shell { height: 100vh; }
+.sidebar { background: #fff; border-right: 1px solid #e7ebee; }
+.nav { border-right: none; }
+.nav :deep(.el-menu-item-group__title) {
+  padding: 16px 20px 6px;
+  color: #8a939c;
+  font-size: 11px;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  border-bottom: 1px solid #e7ebee;
+  background: #fff;
+  color: #606266;
+  padding: 0 24px;
+}
+.role {
+  margin-left: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #edf7f7;
+  color: #167d7f;
+  font-size: 12px;
+}
+.main { padding: 22px; background: #f5f7f8; }
+@media (max-width: 760px) {
+  .shell {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+  .sidebar {
+    width: 100% !important;
+    flex: none;
+    border-right: none;
+    border-bottom: 1px solid #e7ebee;
+  }
+  .brand {
+    height: 52px;
+  }
+  .nav {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .nav :deep(.el-menu-item-group),
+  .nav :deep(.el-menu-item-group > ul) {
+    display: flex;
+    flex: none;
+  }
+  .nav :deep(.el-menu-item-group__title) {
+    display: none;
+  }
+  .nav :deep(.el-menu-item) {
+    height: 44px;
+    line-height: 44px;
+    padding: 0 12px !important;
+    flex: none;
+  }
+  .header {
+    height: 54px;
+    padding: 0 14px;
+    flex: none;
+  }
+  .main {
+    padding: 12px !important;
+  }
+}
+</style>

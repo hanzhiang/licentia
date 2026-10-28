@@ -1,0 +1,19 @@
+{
+  "name": "@lp/migrate-legacy",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main.js",
+  "dependencies": {
+    "@lp/audit": "workspace:*",
+    "@lp/config": "workspace:*",
+    "@lp/db": "workspace:*",
+    "@lp/domain": "workspace:*",
+    "@lp/keygen": "workspace:*",
+    "better-sqlite3": "^12.2.0",
+    "kysely": "^0.27.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^24.0.0"
+  }
+}

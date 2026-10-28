@@ -1,0 +1,129 @@
+Licentia Source-Available License, Version 1.0
+Licentia 源码可见许可协议 1.0
+
+Copyright (c) 2026 Rylan <rylanx@126.com>
+All rights reserved except as expressly granted below.
+除下文明确授予的权利外，保留一切权利。
+
+
+1. GRANT / 授权
+
+Subject to the terms of this License, you are granted a worldwide, royalty-free,
+non-exclusive license to:
+  (a) use, run, and evaluate the Software;
+  (b) copy and modify the Software; and
+  (c) distribute the Software and your modifications, in source or object form,
+      provided every copy carries this License and the copyright notice above.
+
+在遵守本协议的前提下，授予你全球范围、免费、非独占的许可，允许你：
+  (一) 使用、运行和评估本软件；
+  (二) 复制和修改本软件；
+  (三) 以源码或目标码形式分发本软件及你的修改，前提是每一份副本都附带本协议
+       及上述版权声明。
+
+
+2. NONCOMMERCIAL USE ONLY / 仅限非商业用途
+
+The rights granted in Section 1 are limited to Noncommercial Use. Commercial Use
+is NOT permitted without a separate written license from the copyright holder.
+
+"Commercial Use" means any use that is intended for or directed toward commercial
+advantage or monetary compensation, including without limitation:
+  (a) using the Software to provide a paid product or paid service;
+  (b) selling, licensing, renting, or leasing the Software or access to it;
+  (c) bundling the Software into a product or service offered for a fee;
+  (d) internal use by a for-profit organization in its revenue-generating
+      business operations.
+
+"Noncommercial Use" includes personal study, hobby projects, academic research,
+teaching, and use by charitable, educational, public research, public health or
+safety, environmental, or government institutions for their public-interest
+purposes.
+
+第 1 条授予的权利仅限于非商业用途。未经著作权人另行书面许可，禁止商业使用。
+
+"商业使用"指以获取商业利益或金钱报酬为目的的任何使用，包括但不限于：
+  (一) 使用本软件提供付费产品或付费服务；
+  (二) 销售、许可、出租或出借本软件或对其的访问权；
+  (三) 将本软件打包进收费的产品或服务；
+  (四) 营利性组织在其创收业务运营中的内部使用。
+
+"非商业用途"包括个人学习、业余项目、学术研究、教学，以及慈善、教育、公共科研、
+公共卫生或安全、环境保护或政府机构为其公共利益目的的使用。
+
+
+3. CONDITIONS / 条件
+
+  (a) You must retain this License and all copyright, attribution, and notice
+      text in the Software and in any redistribution.
+  (b) You must not remove, obscure, or alter any legal notice.
+  (c) If you distribute the Software, you must make the complete corresponding
+      source available under this same License.
+  (d) You may not sublicense, sell, or transfer the rights granted to you except
+      as part of a distribution permitted by Section 1(c).
+
+  (一) 你必须在本软件及任何再分发中保留本协议以及全部版权、署名和声明文字。
+  (二) 你不得移除、遮盖或篡改任何法律声明。
+  (三) 若你分发本软件，必须以本协议相同的条款提供完整的对应源码。
+  (四) 除第 1 条(三)允许的分发外，你不得再许可、出售或转让授予你的权利。
+
+
+4. NO TRADEMARK LICENSE / 无商标许可
+
+This License does not grant any right to use the names, logos, or trademarks of
+the copyright holder or contributors.
+
+本协议不授予使用著作权人或贡献者的名称、标识或商标的任何权利。
+
+
+5. NO WARRANTY / 无担保
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+本软件按"现状"提供，不附带任何明示或默示的担保，包括但不限于对适销性、特定用途
+适用性、权利完整性及不侵权的担保。
+
+
+6. LIMITATION OF LIABILITY / 责任限制
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER AND CONTRIBUTORS
+SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING LOSS OF DATA, PROFITS, OR BUSINESS INTERRUPTION)
+ARISING OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THIS LICENSE, HOWEVER CAUSED
+AND UNDER ANY THEORY OF LIABILITY.
+
+在法律允许的最大范围内，著作权人及贡献者不对因本软件或本协议引起的任何直接、间接、
+偶发、特殊、惩戒性或后果性损害（包括数据丢失、利润损失或业务中断）承担责任，无论
+基于何种责任理论。
+
+
+7. TERMINATION / 终止
+
+Your rights under this License terminate automatically and immediately if you
+breach any of its terms. Upon termination you must stop using and distributing
+the Software and destroy or delete all copies in your possession or control.
+
+你若违反本协议任何条款，本协议授予你的权利立即自动终止。终止后你必须停止使用和分发
+本软件，并销毁或删除你所持有或控制的全部副本。
+
+
+8. DEFINITIONS / 定义
+
+"Software" means the Licentia source code, documentation, schemas, and any other
+materials made available under this License.
+"You" means the individual or legal entity exercising rights under this License.
+
+"本软件"指依据本协议提供的 Licentia 源代码、文档、数据库结构及其他材料。
+"你"指行使本协议项下权利的自然人或法律实体。
+
+
+---
+
+
+非商业使用无需联系作者。商业授权、定制开发或技术支持请联系：
+rylanx@126.com
+
+Noncommercial use requires no permission. For commercial licensing, custom
+development, or support, contact: rylanx@126.com

@@ -1,0 +1,13 @@
+{
+  "name": "@lp/cache",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0"
+  }
+}

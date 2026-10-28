@@ -1,0 +1,65 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/config"
+    },
+    {
+      "path": "packages/domain"
+    },
+    {
+      "path": "packages/keygen"
+    },
+    {
+      "path": "packages/tenancy"
+    },
+    {
+      "path": "packages/db"
+    },
+    {
+      "path": "packages/http"
+    },
+    {
+      "path": "packages/auth"
+    },
+    {
+      "path": "packages/signer"
+    },
+    {
+      "path": "packages/idempotency"
+    },
+    {
+      "path": "packages/events"
+    },
+    {
+      "path": "packages/cache"
+    },
+    {
+      "path": "packages/audit"
+    },
+    {
+      "path": "packages/notify"
+    },
+    {
+      "path": "apps/client-api"
+    },
+    {
+      "path": "apps/admin-api"
+    },
+    {
+      "path": "apps/open-api"
+    },
+    {
+      "path": "apps/portal-api"
+    },
+    {
+      "path": "apps/worker"
+    },
+    {
+      "path": "apps/tools"
+    },
+    {
+      "path": "sdks/ts"
+    }
+  ]
+}

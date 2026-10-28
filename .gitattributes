@@ -1,0 +1,22 @@
+# 统一换行: 仓库内一律 LF, 检出时按平台转换
+* text=auto eol=lf
+
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.vue   text eol=lf
+*.js    text eol=lf
+*.json  text eol=lf
+*.sql   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.sh    text eol=lf
+LICENSE text eol=lf
+
+# 二进制
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.gz   binary
+*.zip  binary
+*.dump binary
