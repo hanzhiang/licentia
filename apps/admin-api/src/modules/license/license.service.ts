@@ -281,4 +281,88 @@ export class LicenseService {
       },
     );
   }
+
+  /**
+   * 授权码完整轨迹: 发码 → 激活/解绑 → 续费 → 吊销, 按时间排序。
+   * 数据来自 licenses 自身时间戳、renewals、license_activations 与 events。
+   */
+  async timeline(
+    tenantId: string,
+    licenseId: string,
+    channelId?: string | null,
+  ): Promise<Array<{ at: string; type: string; detail: Record<string, unknown> }>> {
+    return withTenantTx(this.db, tenantId, async (tx) => {
+      const lic = await tx
+        .selectFrom('licenses')
+        .selectAll()
+        .where('id', '=', licenseId)
+        .executeTakeFirst();
+      if (!lic || (channelId && lic.channel_id !== channelId)) throw errLicNotFound();
+
+      const events: Array<{ at: Date; type: string; detail: Record<string, unknown> }> = [];
+
+      events.push({ at: lic.issued_at, type: 'issued', detail: { code_masked: maskCode(lic.code.replace(/-/g, '')) } });
+      if (lic.activated_at) events.push({ at: lic.activated_at, type: 'activated', detail: {} });
+      if (lic.suspended_at) events.push({ at: lic.suspended_at, type: 'suspended', detail: {} });
+      if (lic.revoked_at) {
+        events.push({ at: lic.revoked_at, type: 'revoked', detail: { reason: lic.revoked_reason } });
+      }
+
+      const acts = await tx
+        .selectFrom('license_activations')
+        .select(['id', 'activated_at', 'released_at', 'released_reason', 'device_id', 'end_customer_id'])
+        .where('license_id', '=', licenseId)
+        .execute();
+      for (const a of acts) {
+        events.push({
+          at: a.activated_at,
+          type: 'device_activated',
+          detail: { activation_id: a.id, device_id: a.device_id, end_customer_id: a.end_customer_id },
+        });
+        if (a.released_at) {
+          events.push({
+            at: a.released_at,
+            type: 'device_released',
+            detail: { activation_id: a.id, reason: a.released_reason },
+          });
+        }
+      }
+
+      const renews = await tx
+        .selectFrom('renewals')
+        .select(['days', 'old_expires_at', 'new_expires_at', 'source', 'created_at'])
+        .where('license_id', '=', licenseId)
+        .execute();
+      for (const r of renews) {
+        events.push({
+          at: r.created_at,
+          type: 'renewed',
+          detail: {
+            days: r.days,
+            source: r.source,
+            old_expires_at: r.old_expires_at?.toISOString() ?? null,
+            new_expires_at: r.new_expires_at.toISOString(),
+          },
+        });
+      }
+
+      const evs = await tx
+        .selectFrom('events')
+        .select(['type', 'created_at', 'payload'])
+        .where('aggregate_id', '=', licenseId)
+        .orderBy('created_at', 'asc')
+        .limit(200)
+        .execute();
+      for (const e of evs) {
+        // 只补尚未由时间戳覆盖的事件类型, 避免重复
+        if (e.type === 'license.expire_warning') {
+          events.push({ at: e.created_at, type: 'expire_warning', detail: e.payload });
+        }
+      }
+
+      return events
+        .sort((a, b) => a.at.getTime() - b.at.getTime())
+        .map((e) => ({ at: e.at.toISOString(), type: e.type, detail: e.detail }));
+    });
+  }
 }

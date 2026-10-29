@@ -87,4 +87,16 @@ export class LicenseController {
     const result = await this.service.revoke(tenantId, id, cmd, idemKey(req), actorFrom(req));
     void reply.code(result.status).send(result.body);
   }
+
+  @Get(':id/timeline')
+  @RequirePerms('license:read')
+  async timeline(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    const data = await this.service.timeline(tenantId, id, channelScope(req));
+    void reply.code(200).send({ data });
+  }
 }

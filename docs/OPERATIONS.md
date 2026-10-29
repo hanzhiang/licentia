@@ -94,7 +94,23 @@ pnpm seed:demo       # (可选) 演示用开发者 demo 及其 5 个角色账号
 
 在「团队成员」里添加成员时选择角色「渠道」并指定所属渠道即可。
 
-### 2.4 席位与并发
+### 2.4 把码交给客户
+
+发码只是生成，交付是另一步：
+
+```
+POST /admin/v1/batches/:id/deliver   { "to": "customer@example.com", "limit": 200 }
+POST /admin/v1/licenses/:id/deliver  { "to": "customer@example.com" }
+```
+
+- 不传 `to` 时，回落到该授权绑定的组织联系人邮箱；两者都没有则直接报错，不会假成功
+- 单封邮件最多 200 个码，超出请调大 `limit` 或改用 CSV 导出
+- 渠道账号只能交付本渠道的码
+- 交付动作写审计（`license.deliver` / `batch.deliver`），记录收件人与结果
+
+授权轨迹：`GET /admin/v1/licenses/:id/timeline` 返回发码、激活、解绑、续费、吊销、到期提醒。
+
+### 2.5 席位与并发
 
 策略里的 `seat_limit`（按用户计席位）与 `concurrency_limit`（按同时在线设备计）在**心跳时强制**：
 
@@ -105,7 +121,7 @@ pnpm seed:demo       # (可选) 演示用开发者 demo 及其 5 个角色账号
 发码单批上限：`BATCH_SYNC_THRESHOLD`（默认 10000）。超过会被拒绝并提示分批——
 发码是同步路径，硬塞会把请求拖到超时。
 
-### 2.5 审计分区维护
+### 2.6 审计分区维护
 
 `audit_events` 按月分区，**分区缺失时对应月份的任何写操作都会失败**（所有写操作都要写审计）。
 迁移 0011 已补到 2028-12，更远月份需要定期补齐：
@@ -116,7 +132,7 @@ pnpm db:partitions --months 12   # 保证当前月及未来 12 个月的分区�
 
 建议放进月度定时任务。用 `MIGRATE_DATABASE_URL`（超级用户）执行，应用角色没有建表权限。
 
-### 2.6 worker 健康
+### 2.7 worker 健康
 
 worker 监听 `PORT_WORKER`（默认 3005）：
 
@@ -125,7 +141,7 @@ worker 监听 `PORT_WORKER`（默认 3005）：
 
 建议把 `/healthz` 接给容器健康检查或负载均衡，`lp_worker_stale == 1` 时告警。
 
-### 2.7 停用开发者账号
+### 2.8 停用开发者账号
 
 平台在「开发者账号」里停用后：
 - 该租户所有成员无法登录，refresh 也会被拒

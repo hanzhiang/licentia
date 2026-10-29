@@ -72,6 +72,11 @@
         <el-descriptions-item label="许可证 ID" :span="2">{{ detail.id }}</el-descriptions-item>
       </el-descriptions>
 
+      <div class="drawer-actions" v-if="auth.can('license:issue') && detail">
+        <el-button size="small" type="primary" @click="deliver">发送给客户</el-button>
+        <span class="hint">不填邮箱时发给该授权绑定的组织联系人</span>
+      </div>
+
       <div class="section-title">当前设备</div>
       <el-table :data="activations" size="small" empty-text="暂无设备激活">
         <el-table-column label="设备" min-width="170">
@@ -91,6 +96,15 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="section-title">生命周期</div>
+      <el-timeline v-if="timeline.length">
+        <el-timeline-item v-for="(e, i) in timeline" :key="i" :timestamp="fmt(e.at)">
+          {{ timelineLabel(e.type) }}
+          <span v-if="e.detail?.reason" class="hint"> · {{ e.detail.reason }}</span>
+        </el-timeline-item>
+      </el-timeline>
+      <el-empty v-else description="暂无记录" :image-size="60" />
     </div>
   </el-drawer>
 </template>
@@ -128,6 +142,22 @@ interface Activation {
 
 const rows = ref<LicenseRow[]>([]);
 const activations = ref<Activation[]>([]);
+const timeline = ref<Array<{ at: string; type: string; detail: Record<string, unknown> }>>([]);
+
+const TIMELINE_LABELS: Record<string, string> = {
+  issued: '授权码生成',
+  activated: '首次激活',
+  device_activated: '设备绑定',
+  device_released: '设备解绑',
+  renewed: '续期',
+  suspended: '暂停',
+  revoked: '吊销',
+  expire_warning: '到期提醒',
+};
+
+function timelineLabel(type: string): string {
+  return TIMELINE_LABELS[type] ?? type;
+}
 const loading = ref(false);
 const detailLoading = ref(false);
 const drawer = ref(false);
@@ -244,6 +274,31 @@ function fmt(value: string | null | undefined): string {
 }
 
 onMounted(load);
+
+async function deliver(): Promise<void> {
+  if (!detail.value) return;
+  let to = '';
+  try {
+    const r = await ElMessageBox.prompt(
+      '收件邮箱（留空则发送给该授权绑定的组织联系人）',
+      '发送授权码给客户',
+      { inputPlaceholder: 'customer@example.com', inputValue: '' },
+    );
+    to = (r.value ?? '').trim();
+  } catch {
+    return;
+  }
+  try {
+    const { data } = await api.post(`/admin/v1/licenses/${detail.value.id}/deliver`, {
+      to: to || null,
+    });
+    const d = data.data;
+    if (d.sent) ElMessage.success(`已发送到 ${d.to}`);
+    else ElMessage.error(`发送失败: ${d.error ?? '未知原因'}`);
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  }
+}
 </script>
 
 <style scoped>
@@ -256,5 +311,15 @@ onMounted(load);
 :deep(.el-table__row) { cursor: pointer; }
 @media (max-width: 760px) {
   .page-head { flex-direction: column; }
+}
+.drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 4px;
+}
+.drawer-actions .hint {
+  color: #909399;
+  font-size: 12px;
 }
 </style>
