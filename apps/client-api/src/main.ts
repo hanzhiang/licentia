@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from '@lp/http';
+import { AllExceptionsFilter, installMetrics } from '@lp/http';
 import { getConfig } from '@lp/config';
 
 async function bootstrap(): Promise<void> {
@@ -13,6 +13,7 @@ async function bootstrap(): Promise<void> {
     bodyLimit: 1024 * 1024,
   }));
   app.useGlobalFilters(new AllExceptionsFilter());
+  installMetrics(app.getHttpAdapter().getInstance() as never);
   const port = getConfig().PORT_CLIENT;
   await app.listen(port, '0.0.0.0');
   console.log(`[client-api] listening on :${port}`);

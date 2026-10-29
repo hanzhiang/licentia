@@ -3,98 +3,98 @@
     <template #header>
       <div class="page-head">
         <div>
-          <h2>产品与授权策略</h2>
-          <p>产品决定授权码前缀，策略决定有效期、设备数、席位与功能权益。</p>
+          <h2>{{ t('catalog.title') }}</h2>
+          <p>{{ t('catalog.subtitle') }}</p>
         </div>
-        <el-button :loading="loading" @click="load">刷新</el-button>
+        <el-button :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
       </div>
     </template>
 
     <el-tabs v-model="tab">
-      <el-tab-pane label="产品" name="products">
+      <el-tab-pane :label="t('catalog.tabProducts')" name="products">
         <div class="toolbar">
-          <span>共 {{ catalog.products.length }} 个产品</span>
+          <span>{{ t('catalog.countProducts', { n: catalog.products.length }) }}</span>
           <el-button v-if="auth.can('product:write')" type="primary" @click="productDialog = true">
-            新建产品
+            {{ t('catalog.newProduct') }}
           </el-button>
         </div>
         <el-table :data="catalog.products" size="small">
-          <el-table-column prop="code" label="产品编码" min-width="180" />
-          <el-table-column prop="name" label="产品名称" min-width="220" />
-          <el-table-column prop="status" label="状态" width="110" />
-          <el-table-column prop="id" label="产品 ID" min-width="280" />
-          <el-table-column label="操作" width="90">
+          <el-table-column prop="code" :label="t('catalog.colProductCode')" min-width="180" />
+          <el-table-column prop="name" :label="t('catalog.colProductName')" min-width="220" />
+          <el-table-column prop="status" :label="t('catalog.colStatus')" width="110" />
+          <el-table-column prop="id" :label="t('catalog.colProductId')" min-width="280" />
+          <el-table-column :label="t('common.actions')" width="90">
             <template #default="{ row }">
               <el-button v-if="auth.can('product:write')" link type="primary" @click="openEditProduct(row)">
-                编辑
+                {{ t('common.edit') }}
               </el-button>
               <el-button v-if="auth.can('product:write')" link type="danger" @click="removeProduct(row)">
-                删除
+                {{ t('common.delete') }}
               </el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="授权策略" name="policies">
+      <el-tab-pane :label="t('catalog.tabPolicies')" name="policies">
         <div class="toolbar">
-          <span>共 {{ catalog.policies.length }} 个策略</span>
+          <span>{{ t('catalog.countPolicies', { n: catalog.policies.length }) }}</span>
           <el-button
             v-if="auth.can('policy:write')"
             type="primary"
             :disabled="!catalog.products.length"
             @click="policyDialog = true"
           >
-            新建策略
+            {{ t('catalog.newPolicy') }}
           </el-button>
         </div>
         <el-table :data="catalog.policies" size="small">
-          <el-table-column prop="name" label="策略名称" min-width="180" />
-          <el-table-column prop="product_name" label="产品" min-width="160" />
-          <el-table-column prop="kind" label="类型" width="110" />
-          <el-table-column label="有效期" width="100">
-            <template #default="{ row }">{{ row.duration_days ? `${row.duration_days} 天` : '永久' }}</template>
+          <el-table-column prop="name" :label="t('catalog.colPolicyName')" min-width="180" />
+          <el-table-column prop="product_name" :label="t('catalog.colProduct')" min-width="160" />
+          <el-table-column prop="kind" :label="t('catalog.colKind')" width="110" />
+          <el-table-column :label="t('catalog.colValidity')" width="100">
+            <template #default="{ row }">{{ row.duration_days ? t('catalog.days', { n: row.duration_days }) : t('catalog.perpetual') }}</template>
           </el-table-column>
-          <el-table-column prop="device_limit" label="设备数" width="90" />
-          <el-table-column prop="seat_limit" label="席位" width="80">
+          <el-table-column prop="device_limit" :label="t('catalog.colDevices')" width="90" />
+          <el-table-column prop="seat_limit" :label="t('catalog.colSeats')" width="80">
             <template #default="{ row }">{{ row.seat_limit ?? '-' }}</template>
           </el-table-column>
-          <el-table-column label="功能" min-width="180">
+          <el-table-column :label="t('catalog.colFeatures')" min-width="180">
             <template #default="{ row }">{{ row.features.join(', ') }}</template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="100" />
-          <el-table-column label="操作" width="90">
+          <el-table-column prop="status" :label="t('catalog.colStatus')" width="100" />
+          <el-table-column :label="t('common.actions')" width="90">
             <template #default="{ row }">
               <el-button v-if="auth.can('policy:write')" link type="primary" @click="openEditPolicy(row)">
-                编辑
+                {{ t('common.edit') }}
               </el-button>
               <el-button v-if="auth.can('policy:write')" link type="danger" @click="removePolicy(row)">
-                删除
+                {{ t('common.delete') }}
               </el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="渠道" name="channels">
+      <el-tab-pane :label="t('catalog.tabChannels')" name="channels">
         <div class="toolbar">
-          <span>共 {{ catalog.channels.length }} 个渠道</span>
+          <span>{{ t('catalog.countChannels', { n: catalog.channels.length }) }}</span>
           <el-button v-if="auth.can('channel:write')" type="primary" @click="channelDialog = true">
-            新建渠道
+            {{ t('catalog.newChannel') }}
           </el-button>
         </div>
         <el-table :data="catalog.channels" size="small">
-          <el-table-column prop="code" label="渠道编码" min-width="180" />
-          <el-table-column prop="name" label="渠道名称" min-width="220" />
-          <el-table-column prop="status" label="状态" width="110" />
-          <el-table-column prop="id" label="渠道 ID" min-width="280" />
-          <el-table-column label="操作" width="90">
+          <el-table-column prop="code" :label="t('catalog.colChannelCode')" min-width="180" />
+          <el-table-column prop="name" :label="t('catalog.colChannelName')" min-width="220" />
+          <el-table-column prop="status" :label="t('catalog.colStatus')" width="110" />
+          <el-table-column prop="id" :label="t('catalog.colChannelId')" min-width="280" />
+          <el-table-column :label="t('common.actions')" width="90">
             <template #default="{ row }">
               <el-button v-if="auth.can('channel:write')" link type="primary" @click="openEditChannel(row)">
-                编辑
+                {{ t('common.edit') }}
               </el-button>
               <el-button v-if="auth.can('channel:write')" link type="danger" @click="removeChannel(row)">
-                删除
+                {{ t('common.delete') }}
               </el-button>
             </template>
           </el-table-column>
@@ -103,39 +103,39 @@
     </el-tabs>
   </el-card>
 
-  <el-dialog v-model="productDialog" title="新建产品" width="480px">
+  <el-dialog v-model="productDialog" :title="t('catalog.newProduct')" width="480px">
     <el-form label-width="92px">
-      <el-form-item label="产品编码">
-        <el-input v-model="productForm.code" placeholder="如 school-dorm" />
+      <el-form-item :label="t('catalog.colProductCode')">
+        <el-input v-model="productForm.code" :placeholder="t('catalog.codePlaceholder')" />
       </el-form-item>
-      <el-form-item label="产品名称">
-        <el-input v-model="productForm.name" placeholder="如 校园宿舍管理系统" />
+      <el-form-item :label="t('catalog.colProductName')">
+        <el-input v-model="productForm.name" :placeholder="t('catalog.namePlaceholder')" />
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="productDialog = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="createProduct">创建</el-button>
+      <el-button @click="productDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="saving" @click="createProduct">{{ t('common.create') }}</el-button>
     </template>
   </el-dialog>
 
-  <el-dialog v-model="channelDialog" title="新建渠道" width="480px">
+  <el-dialog v-model="channelDialog" :title="t('catalog.newChannel')" width="480px">
     <el-form label-width="92px">
-      <el-form-item label="渠道编码">
-        <el-input v-model="channelForm.code" placeholder="如 east-partner" />
+      <el-form-item :label="t('catalog.colChannelCode')">
+        <el-input v-model="channelForm.code" :placeholder="t('catalog.channelCodePlaceholder')" />
       </el-form-item>
-      <el-form-item label="渠道名称">
-        <el-input v-model="channelForm.name" placeholder="如 华东代理商" />
+      <el-form-item :label="t('catalog.colChannelName')">
+        <el-input v-model="channelForm.name" :placeholder="t('catalog.channelNamePlaceholder')" />
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="channelDialog = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="createChannel">创建</el-button>
+      <el-button @click="channelDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="saving" @click="createChannel">{{ t('common.create') }}</el-button>
     </template>
   </el-dialog>
 
-  <el-dialog v-model="policyDialog" title="新建授权策略" width="720px">
+  <el-dialog v-model="policyDialog" :title="t('catalog.createPolicyTitle')" width="720px">
     <el-form label-width="120px" class="policy-form">
-      <el-form-item label="产品">
+      <el-form-item :label="t('catalog.colProduct')">
         <el-select v-model="policyForm.product_id" style="width: 100%">
           <el-option
             v-for="p in catalog.products"
@@ -146,22 +146,22 @@
         </el-select>
       </el-form-item>
       <div class="form-grid">
-        <el-form-item label="策略编码">
+        <el-form-item :label="t('catalog.fieldCode')">
           <el-input v-model="policyForm.code" placeholder="standard-365" />
         </el-form-item>
-        <el-form-item label="策略名称">
-          <el-input v-model="policyForm.name" placeholder="标准版 365 天" />
+        <el-form-item :label="t('catalog.fieldName')">
+          <el-input v-model="policyForm.name" :placeholder="t('catalog.policyNamePlaceholder')" />
         </el-form-item>
-        <el-form-item label="授权类型">
+        <el-form-item :label="t('catalog.fieldKind')">
           <el-select v-model="policyForm.kind" style="width: 100%" @change="kindChanged">
-            <el-option label="标准" value="standard" />
-            <el-option label="试用" value="trial" />
-            <el-option label="永久" value="perpetual" />
-            <el-option label="订阅" value="subscription" />
-            <el-option label="浮动" value="floating" />
+            <el-option :label="t('catalog.kind.standard')" value="standard" />
+            <el-option :label="t('catalog.kind.trial')" value="trial" />
+            <el-option :label="t('catalog.kind.perpetual')" value="perpetual" />
+            <el-option :label="t('catalog.kind.subscription')" value="subscription" />
+            <el-option :label="t('catalog.kind.floating')" value="floating" />
           </el-select>
         </el-form-item>
-        <el-form-item label="有效期(天)">
+        <el-form-item :label="t('catalog.fieldDuration')">
           <el-input-number
             v-model="policyForm.duration_days"
             :min="1"
@@ -170,123 +170,123 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="设备数上限">
+        <el-form-item :label="t('catalog.fieldDeviceLimit')">
           <el-input-number v-model="policyForm.device_limit" :min="1" :max="100000" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="席位上限">
+        <el-form-item :label="t('catalog.fieldSeatLimit')">
           <el-input-number v-model="policyForm.seat_limit" :min="1" :max="1000000" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="并发上限">
+        <el-form-item :label="t('catalog.fieldConcurrency')">
           <el-input-number v-model="policyForm.concurrency_limit" :min="1" :max="1000000" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="离线窗口(天)">
+        <el-form-item :label="t('catalog.fieldOffline')">
           <el-input-number v-model="policyForm.offline_window_days" :min="0" :max="90" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="心跳间隔(小时)">
+        <el-form-item :label="t('catalog.fieldHeartbeat')">
           <el-input-number v-model="policyForm.heartbeat_hours" :min="1" :max="168" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="续期窗口(天)">
+        <el-form-item :label="t('catalog.fieldRenewWindow')">
           <el-input-number v-model="policyForm.renew_window_days" :min="0" :max="3650" style="width: 100%" />
         </el-form-item>
       </div>
-      <el-form-item label="功能权益">
-        <el-input v-model="policyForm.featuresText" placeholder="dorm,leave,report (逗号分隔)" />
+      <el-form-item :label="t('catalog.fieldFeatures')">
+        <el-input v-model="policyForm.featuresText" :placeholder="t('catalog.featuresPlaceholder')" />
       </el-form-item>
       <div class="form-grid">
-        <el-form-item label="允许续期">
+        <el-form-item :label="t('catalog.allowRenewal')">
           <el-switch v-model="policyForm.allow_renewal" :disabled="policyForm.kind === 'trial'" />
         </el-form-item>
-        <el-form-item label="最低客户端版本">
-          <el-input v-model="policyForm.min_version" placeholder=">=2.0.0，可留空" />
+        <el-form-item :label="t('catalog.minVersion')">
+          <el-input v-model="policyForm.min_version" :placeholder="t('catalog.minVersionPlaceholder')" />
         </el-form-item>
       </div>
     </el-form>
     <template #footer>
-      <el-button @click="policyDialog = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="createPolicy">创建策略</el-button>
+      <el-button @click="policyDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="saving" @click="createPolicy">{{ t('catalog.createPolicy') }}</el-button>
     </template>
   </el-dialog>
 
-  <el-dialog v-model="editProductDialog" title="编辑产品" width="460px">
+  <el-dialog v-model="editProductDialog" :title="t('catalog.editProductTitle')" width="460px">
     <el-form label-width="92px">
-      <el-form-item label="产品编码">
+      <el-form-item :label="t('catalog.colProductCode')">
         <el-input :model-value="editProduct?.code" disabled />
       </el-form-item>
-      <el-form-item label="产品名称">
+      <el-form-item :label="t('catalog.colProductName')">
         <el-input v-model="editProductForm.name" />
       </el-form-item>
-      <el-form-item label="状态">
+      <el-form-item :label="t('catalog.colStatus')">
         <el-switch
           v-model="editProductForm.active"
-          active-text="启用"
-          inactive-text="停用"
+          :active-text="t('catalog.enabled')"
+          :inactive-text="t('catalog.inactive')"
         />
       </el-form-item>
-      <p class="tip">停用后不能再发新码，已发出的授权不受影响。</p>
+      <p class="tip">{{ t('catalog.productDisableTip') }}</p>
     </el-form>
     <template #footer>
-      <el-button @click="editProductDialog = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="saveProduct">保存</el-button>
+      <el-button @click="editProductDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="saving" @click="saveProduct">{{ t('common.save') }}</el-button>
     </template>
   </el-dialog>
 
-  <el-dialog v-model="editChannelDialog" title="编辑渠道" width="460px">
+  <el-dialog v-model="editChannelDialog" :title="t('catalog.editChannelTitle')" width="460px">
     <el-form label-width="92px">
-      <el-form-item label="渠道编码">
+      <el-form-item :label="t('catalog.colChannelCode')">
         <el-input :model-value="editChannel?.code" disabled />
       </el-form-item>
-      <el-form-item label="渠道名称">
+      <el-form-item :label="t('catalog.colChannelName')">
         <el-input v-model="editChannelForm.name" />
       </el-form-item>
-      <el-form-item label="状态">
-        <el-switch v-model="editChannelForm.active" active-text="启用" inactive-text="停用" />
+      <el-form-item :label="t('catalog.colStatus')">
+        <el-switch v-model="editChannelForm.active" :active-text="t('catalog.enabled')" :inactive-text="t('catalog.inactive')" />
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="editChannelDialog = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="saveChannel">保存</el-button>
+      <el-button @click="editChannelDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="saving" @click="saveChannel">{{ t('common.save') }}</el-button>
     </template>
   </el-dialog>
 
-  <el-dialog v-model="editPolicyDialog" title="编辑策略" width="560px">
+  <el-dialog v-model="editPolicyDialog" :title="t('catalog.editPolicyTitle')" width="560px">
     <el-form label-width="110px">
-      <el-form-item label="策略名称">
+      <el-form-item :label="t('catalog.fieldName')">
         <el-input v-model="editPolicyForm.name" />
       </el-form-item>
-      <el-form-item label="状态">
-        <el-switch v-model="editPolicyForm.active" active-text="启用" inactive-text="停用" />
+      <el-form-item :label="t('catalog.colStatus')">
+        <el-switch v-model="editPolicyForm.active" :active-text="t('catalog.enabled')" :inactive-text="t('catalog.inactive')" />
       </el-form-item>
       <div class="form-grid">
-        <el-form-item label="有效期(天)">
+        <el-form-item :label="t('catalog.fieldDuration')">
           <el-input-number v-model="editPolicyForm.duration_days" :min="1" :max="36500" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="设备数">
+        <el-form-item :label="t('catalog.deviceLimitShort')">
           <el-input-number v-model="editPolicyForm.device_limit" :min="1" :max="100000" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="席位数">
+        <el-form-item :label="t('catalog.seatLimitShort')">
           <el-input-number v-model="editPolicyForm.seat_limit" :min="1" :max="1000000" :value-on-clear="null" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="并发数">
+        <el-form-item :label="t('catalog.concurrencyShort')">
           <el-input-number v-model="editPolicyForm.concurrency_limit" :min="1" :max="1000000" :value-on-clear="null" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="离线窗口(天)">
+        <el-form-item :label="t('catalog.fieldOffline')">
           <el-input-number v-model="editPolicyForm.offline_window_days" :min="0" :max="90" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="心跳间隔(小时)">
+        <el-form-item :label="t('catalog.fieldHeartbeat')">
           <el-input-number v-model="editPolicyForm.heartbeat_hours" :min="1" :max="168" style="width: 100%" />
         </el-form-item>
       </div>
-      <el-form-item label="功能权益">
+      <el-form-item :label="t('catalog.fieldFeatures')">
         <el-input v-model="editPolicyForm.featuresText" placeholder="dorm,leave" />
       </el-form-item>
-      <el-form-item label="允许续期">
+      <el-form-item :label="t('catalog.allowRenewal')">
         <el-switch v-model="editPolicyForm.allow_renewal" />
       </el-form-item>
-      <p class="tip">改动只影响之后新发的授权码；已发出的码保留发码时的字段快照。</p>
+      <p class="tip">{{ t('catalog.policyEditTip') }}</p>
     </el-form>
     <template #footer>
-      <el-button @click="editPolicyDialog = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="savePolicy">保存</el-button>
+      <el-button @click="editPolicyDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="saving" @click="savePolicy">{{ t('common.save') }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -296,8 +296,10 @@ import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { api, errMsg } from '../api';
 import { useAuth } from '../store';
+import { useI18n } from 'vue-i18n';
 
 const auth = useAuth();
+const { t } = useI18n();
 
 interface Product {
   id: string;
@@ -391,7 +393,7 @@ async function createProduct(): Promise<void> {
   saving.value = true;
   try {
     await api.post('/admin/v1/catalog/products', productForm);
-    ElMessage.success('产品已创建');
+    ElMessage.success(t('catalog.createdProduct'));
     productDialog.value = false;
     productForm.code = '';
     productForm.name = '';
@@ -407,7 +409,7 @@ async function createChannel(): Promise<void> {
   saving.value = true;
   try {
     await api.post('/admin/v1/catalog/channels', channelForm);
-    ElMessage.success('渠道已创建');
+    ElMessage.success(t('catalog.createdChannel'));
     channelDialog.value = false;
     channelForm.code = '';
     channelForm.name = '';
@@ -454,7 +456,7 @@ async function createPolicy(): Promise<void> {
       renew_window_days: policyForm.renew_window_days,
       min_version: policyForm.min_version || null,
     });
-    ElMessage.success('策略已创建');
+    ElMessage.success(t('catalog.createdPolicy'));
     policyDialog.value = false;
     await load();
   } catch (e) {
@@ -502,7 +504,7 @@ async function saveProduct(): Promise<void> {
       name: editProductForm.name,
       status: editProductForm.active ? 'active' : 'disabled',
     });
-    ElMessage.success('产品已更新');
+    ElMessage.success(t('catalog.updatedProduct'));
     editProductDialog.value = false;
     await load();
   } catch (e) {
@@ -527,7 +529,7 @@ async function saveChannel(): Promise<void> {
       name: editChannelForm.name,
       status: editChannelForm.active ? 'active' : 'disabled',
     });
-    ElMessage.success('渠道已更新');
+    ElMessage.success(t('catalog.updatedChannel'));
     editChannelDialog.value = false;
     await load();
   } catch (e) {
@@ -572,7 +574,7 @@ async function savePolicy(): Promise<void> {
       allow_renewal: editPolicyForm.allow_renewal,
       features,
     });
-    ElMessage.success('策略已更新');
+    ElMessage.success(t('catalog.updatedPolicy'));
     editPolicyDialog.value = false;
     await load();
   } catch (e) {
@@ -585,8 +587,8 @@ async function savePolicy(): Promise<void> {
 async function remove(kind: 'products' | 'policies' | 'channels', row: { name: string; id: string }): Promise<void> {
   try {
     await ElMessageBox.confirm(
-      `确认删除「${row.name}」？已发过码的对象不能删除，只能停用。`,
-      '删除确认',
+      t('catalog.deleteConfirm', { name: row.name }),
+      t('catalog.deleteTitle'),
       { type: 'warning' },
     );
   } catch {
@@ -594,7 +596,7 @@ async function remove(kind: 'products' | 'policies' | 'channels', row: { name: s
   }
   try {
     await api.delete(`/admin/v1/catalog/${kind}/${row.id}`);
-    ElMessage.success('已删除');
+    ElMessage.success(t('catalog.deleted'));
     await load();
   } catch (e) {
     ElMessage.error(errMsg(e));

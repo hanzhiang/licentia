@@ -1,3 +1,4 @@
+export * from './metrics';
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
 import { AppError } from '@lp/domain';

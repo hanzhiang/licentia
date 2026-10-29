@@ -2,18 +2,18 @@
   <el-card>
     <template #header>
       <div class="row">
-        <span>渠道/批次统计(激活率、活跃、退款回收)</span>
-        <el-button size="small" @click="load">刷新</el-button>
+        <span>{{ t('reports.title') }}</span>
+        <el-button size="small" @click="load">{{ t('common.refresh') }}</el-button>
       </div>
     </template>
     <el-table :data="rows" v-loading="loading" size="small">
-      <el-table-column prop="batch_id" label="批次" width="280" />
-      <el-table-column prop="channel_name" label="渠道" width="140" />
-      <el-table-column prop="quantity" label="发码量" width="100" />
-      <el-table-column prop="activated_count" label="已激活" width="100" />
-      <el-table-column prop="active_license_count" label="活跃" width="100" />
-      <el-table-column prop="revoked_count" label="吊销(退款)" width="110" />
-      <el-table-column label="激活率">
+      <el-table-column prop="batch_id" :label="t('reports.colBatch')" width="280" />
+      <el-table-column prop="channel_name" :label="t('reports.colChannel')" width="140" />
+      <el-table-column prop="quantity" :label="t('reports.colQuantity')" width="100" />
+      <el-table-column prop="activated_count" :label="t('reports.colActivated')" width="100" />
+      <el-table-column prop="active_license_count" :label="t('reports.colActive')" width="100" />
+      <el-table-column prop="revoked_count" :label="t('reports.colRevoked')" width="110" />
+      <el-table-column :label="t('reports.colRate')">
         <template #default="{ row }">
           <el-progress
             :percentage="Number(row.activation_rate_pct)"
@@ -30,6 +30,9 @@
 import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { api, errMsg } from '../api';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const rows = ref<Record<string, unknown>[]>([]);
 const loading = ref(false);

@@ -3,10 +3,10 @@
     <template #header>
       <div class="page-head">
         <div>
-          <h2>批量发码</h2>
-          <p>按已配置的产品、授权策略和渠道生成授权码。明文仅展示一次。</p>
+          <h2>{{ t('batches.title') }}</h2>
+          <p>{{ t('batches.subtitle') }}</p>
         </div>
-        <el-button :loading="loadingList" @click="loadAll">刷新</el-button>
+        <el-button :loading="loadingList" @click="loadAll">{{ t('common.refresh') }}</el-button>
       </div>
     </template>
 
@@ -15,13 +15,13 @@
       type="warning"
       show-icon
       :closable="false"
-      title="请先在「产品与策略」中创建产品、授权策略和渠道。"
+      :title="t('batches.noticeNeedCatalog')"
       class="notice"
     />
 
     <el-form v-if="auth.can('license:issue')" label-position="top" class="issue-form">
-      <el-form-item label="产品">
-        <el-select v-model="productId" placeholder="选择产品" style="width: 100%" @change="productChanged">
+      <el-form-item :label="t('batches.fieldProduct')">
+        <el-select v-model="productId" :placeholder="t('batches.productPlaceholder')" style="width: 100%" @change="productChanged">
           <el-option
             v-for="p in catalog.products"
             :key="p.id"
@@ -30,18 +30,18 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="授权策略">
-        <el-select v-model="policyId" placeholder="选择策略" style="width: 100%">
+      <el-form-item :label="t('batches.fieldPolicy')">
+        <el-select v-model="policyId" :placeholder="t('batches.policyPlaceholder')" style="width: 100%">
           <el-option
             v-for="p in productPolicies"
             :key="p.id"
-            :label="`${p.name} · ${p.kind} · ${p.duration_days ?? '永久'}`"
+            :label="`${p.name} · ${p.kind} · ${p.duration_days ?? t('batches.perpetual')}`"
             :value="p.id"
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="渠道">
-        <el-select v-model="channelId" clearable placeholder="可选" style="width: 100%">
+      <el-form-item :label="t('batches.fieldChannel')">
+        <el-select v-model="channelId" :clearable="true" :placeholder="t('batches.channelPlaceholder')" style="width: 100%">
           <el-option
             v-for="c in catalog.channels"
             :key="c.id"
@@ -50,11 +50,11 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="数量">
+      <el-form-item :label="t('batches.fieldQuantity')">
         <el-input-number v-model="quantity" :min="1" :max="100000" style="width: 100%" />
       </el-form-item>
-      <el-form-item label="备注" class="note-field">
-        <el-input v-model="note" placeholder="如：2026 春季渠道铺货" />
+      <el-form-item :label="t('batches.fieldNote')" class="note-field">
+        <el-input v-model="note" :placeholder="t('batches.notePlaceholder')" />
       </el-form-item>
       <el-form-item label=" ">
         <el-button
@@ -63,42 +63,42 @@
           :disabled="!productId || !policyId"
           @click="issue"
         >
-          生成授权码
+          {{ t('batches.issue') }}
         </el-button>
       </el-form-item>
     </el-form>
 
     <div v-if="selectedPolicy" class="policy-summary">
-      <span>设备 {{ selectedPolicy.device_limit }} 台</span>
-      <span>席位 {{ selectedPolicy.seat_limit ?? '不限' }}</span>
-      <span>离线 {{ selectedPolicy.offline_window_days }} 天</span>
-      <span>权益 {{ selectedPolicy.features.join(' / ') }}</span>
+      <span>{{ t('batches.deviceCount', { n: selectedPolicy.device_limit }) }}</span>
+      <span>{{ t('batches.seatCount', { n: selectedPolicy.seat_limit ?? t('common.none') }) }}</span>
+      <span>{{ t('batches.offlineDays', { n: selectedPolicy.offline_window_days }) }}</span>
+      <span>{{ t('batches.features', { list: selectedPolicy.features.join(' / ') }) }}</span>
     </div>
 
     <el-alert v-if="lastCodes.length" type="success" :closable="false" class="codes">
       <template #title>
         <div class="codes-title">
-          <span>本批 {{ lastCodes.length }} 个码</span>
-          <el-button link type="primary" @click="copyCodes">复制全部</el-button>
+          <span>{{ t('batches.codesTitle', { n: lastCodes.length }) }}</span>
+          <el-button link type="primary" @click="copyCodes">{{ t('batches.copyAll') }}</el-button>
         </div>
       </template>
       <div class="code-list">{{ lastCodes.join('\n') }}</div>
     </el-alert>
 
-    <div class="section-title">发码批次</div>
+    <div class="section-title">{{ t('batches.sectionTitle') }}</div>
     <el-table :data="batches" v-loading="loadingList" size="small">
-      <el-table-column prop="code" label="批次号" width="210" />
-      <el-table-column prop="quantity" label="数量" width="90" />
-      <el-table-column prop="issued_count" label="已发" width="90" />
-      <el-table-column prop="failed_count" label="失败" width="90" />
-      <el-table-column prop="status" label="状态" width="150">
+      <el-table-column prop="code" :label="t('batches.colBatchCode')" width="210" />
+      <el-table-column prop="quantity" :label="t('batches.colQuantity')" width="90" />
+      <el-table-column prop="issued_count" :label="t('batches.colIssued')" width="90" />
+      <el-table-column prop="failed_count" :label="t('batches.colFailed')" width="90" />
+      <el-table-column prop="status" :label="t('batches.colStatus')" width="150">
         <template #default="{ row }">
           <el-tag size="small" :type="row.status === 'completed' ? 'success' : 'warning'">
             {{ row.status }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="note" label="备注" />
+      <el-table-column prop="note" :label="t('batches.colNote')" />
     </el-table>
   </el-card>
 </template>
@@ -108,8 +108,10 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { api, errMsg, idemKey } from '../api';
 import { useAuth } from '../store';
+import { useI18n } from 'vue-i18n';
 
 const auth = useAuth();
+const { t } = useI18n();
 
 interface Product {
   id: string;
@@ -207,7 +209,7 @@ async function issue(): Promise<void> {
       { headers: { 'Idempotency-Key': idemKey() } },
     );
     lastCodes.value = (data.data.codes ?? []) as string[];
-    ElMessage.success(`已发 ${data.data.issued_count} 个码`);
+    ElMessage.success(t('batches.issuedOk', { n: data.data.issued_count }));
     await loadBatches();
   } catch (e) {
     ElMessage.error(errMsg(e));
@@ -218,7 +220,7 @@ async function issue(): Promise<void> {
 
 async function copyCodes(): Promise<void> {
   await navigator.clipboard.writeText(lastCodes.value.join('\n'));
-  ElMessage.success('授权码已复制');
+  ElMessage.success(t('batches.copied'));
 }
 
 onMounted(loadAll);

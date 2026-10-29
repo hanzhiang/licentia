@@ -3,66 +3,66 @@
     <template #header>
       <div class="page-head">
         <div>
-          <h2>Webhook 投递</h2>
-          <p>HMAC 签名投递，失败自动退避；连续失败会熔断，避免拖垮业务系统。</p>
+          <h2>{{ t('webhooks.title') }}</h2>
+          <p>{{ t('webhooks.subtitle') }}</p>
         </div>
         <div class="actions">
-          <el-button :loading="loading" @click="load">刷新</el-button>
+          <el-button :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
           <el-button v-if="auth.can('webhook:write')" type="primary" @click="dialog = true">
-            新建端点
+            {{ t('webhooks.newEndpoint') }}
           </el-button>
         </div>
       </div>
     </template>
     <el-table :data="rows" v-loading="loading" size="small">
-      <el-table-column prop="url" label="回调地址" min-width="300" show-overflow-tooltip />
-      <el-table-column label="订阅事件" min-width="220">
+      <el-table-column prop="url" :label="t('webhooks.colUrl')" min-width="300" show-overflow-tooltip />
+      <el-table-column :label="t('webhooks.colEvents')" min-width="220">
         <template #default="{ row }">{{ row.events.join(', ') }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="120">
+      <el-table-column :label="t('webhooks.colStatus')" width="120">
         <template #default="{ row }">
           <el-tag :type="row.status === 'active' ? 'success' : 'danger'" size="small">
             {{ row.status }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="failure_count" label="熔断次数" width="100" />
-      <el-table-column label="自动恢复时间" width="190">
+      <el-table-column prop="failure_count" :label="t('webhooks.colFailureCount')" width="100" />
+      <el-table-column :label="t('webhooks.colDisabledUntil')" width="190">
         <template #default="{ row }">
           {{ row.disabled_until ? new Date(row.disabled_until).toLocaleString() : '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="240">
+      <el-table-column :label="t('common.actions')" width="240">
         <template #default="{ row }">
-          <el-button v-if="auth.can('webhook:write')" link type="primary" @click="rotate(row)">轮换密钥</el-button>
+          <el-button v-if="auth.can('webhook:write')" link type="primary" @click="rotate(row)">{{ t('webhooks.rotateSecret') }}</el-button>
           <el-button v-if="row.status === 'disabled' && auth.can('webhook:write')" link type="success" @click="reset(row)">
-            恢复
+            {{ t('webhooks.restore') }}
           </el-button>
         </template>
       </el-table-column>
     </el-table>
   </el-card>
 
-  <el-dialog v-model="dialog" title="新建 Webhook 端点" width="560px">
+  <el-dialog v-model="dialog" :title="t('webhooks.dialogTitle')" width="560px">
     <el-form label-width="90px">
-      <el-form-item label="回调地址">
+      <el-form-item :label="t('webhooks.colUrl')">
         <el-input v-model="form.url" placeholder="https://example.com/webhooks/license" />
       </el-form-item>
-      <el-form-item label="订阅事件">
+      <el-form-item :label="t('webhooks.colEvents')">
         <el-select v-model="form.events" multiple filterable style="width: 100%">
-          <el-option label="全部事件 (*)" value="*" />
+          <el-option :label="t('webhooks.allEvents')" value="*" />
           <el-option v-for="e in events" :key="e" :label="e" :value="e" />
         </el-select>
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="dialog = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="create">创建</el-button>
+      <el-button @click="dialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="saving" @click="create">{{ t('common.create') }}</el-button>
     </template>
   </el-dialog>
 
-  <el-dialog v-model="secretDialog" title="请立即保存签名密钥" width="620px">
-    <el-alert type="warning" :closable="false" title="该密钥只显示一次，关闭后无法再次查看。" />
+  <el-dialog v-model="secretDialog" :title="t('webhooks.secretTitle')" width="620px">
+    <el-alert type="warning" :closable="false" :title="t('webhooks.secretNote')" />
     <el-input class="secret" :model-value="secret" readonly type="textarea" :rows="3" />
   </el-dialog>
 </template>
@@ -72,8 +72,10 @@ import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { api, errMsg } from '../api';
 import { useAuth } from '../store';
+import { useI18n } from 'vue-i18n';
 
 const auth = useAuth();
+const { t } = useI18n();
 
 interface Endpoint {
   id: string;
@@ -133,7 +135,11 @@ async function create(): Promise<void> {
 
 async function rotate(row: Endpoint): Promise<void> {
   try {
-    await ElMessageBox.confirm('旧密钥会立即失效，确认轮换?', `轮换 ${row.url}`, { type: 'warning' });
+    await ElMessageBox.confirm(
+      t('webhooks.rotateConfirm'),
+      t('webhooks.rotateTitle', { url: row.url }),
+      { type: 'warning' },
+    );
     const { data } = await api.post(`/admin/v1/webhook-endpoints/${row.id}/rotate-secret`, {});
     secret.value = data.data.secret;
     secretDialog.value = true;
@@ -144,9 +150,9 @@ async function rotate(row: Endpoint): Promise<void> {
 
 async function reset(row: Endpoint): Promise<void> {
   try {
-    await ElMessageBox.confirm('将端点恢复为 active 并从 1 分钟冷却重新计数。', `恢复 ${row.url}`);
+    await ElMessageBox.confirm(t('webhooks.resetConfirm'), t('webhooks.resetTitle', { url: row.url }));
     await api.post(`/admin/v1/webhook-endpoints/${row.id}/reset-breaker`, {});
-    ElMessage.success('端点已恢复');
+    ElMessage.success(t('webhooks.restored'));
     await load();
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(errMsg(e));

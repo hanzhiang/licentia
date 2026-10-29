@@ -1,26 +1,26 @@
 <template>
   <div class="login-wrap">
     <el-card class="login-card">
-      <h2>授权与许可管理平台</h2>
+      <h2>{{ t('login.title') }}</h2>
       <el-form :model="form" label-width="0" @keyup.enter="submit">
         <el-form-item>
-          <el-input v-model="form.email" placeholder="邮箱(如 operator@demo.local)" />
+          <el-input v-model="form.email" :placeholder="t('login.emailPlaceholder')" />
         </el-form-item>
         <el-form-item>
-          <el-input v-model="form.password" type="password" placeholder="密码" show-password />
+          <el-input v-model="form.password" type="password" :placeholder="t('login.passwordPlaceholder')" show-password />
         </el-form-item>
         <el-alert v-if="unverified" :closable="false" type="warning" class="verify-hint">
-          <div>该邮箱尚未验证。</div>
-          <el-button link type="primary" @click="resend">重新发送验证码</el-button>
-          <router-link to="/register" class="to-register">去完成验证</router-link>
+          <div>{{ t('login.unverified') }}</div>
+          <el-button link type="primary" @click="resend">{{ t('login.resend') }}</el-button>
+          <router-link to="/register" class="to-register">{{ t('login.goVerify') }}</router-link>
         </el-alert>
         <el-button type="primary" style="width: 100%" :loading="loading" @click="submit">
-          登录
+          {{ t('login.submit') }}
         </el-button>
       </el-form>
       <div class="foot">
-        <span>还没有开发者账号？</span>
-        <router-link to="/register">立即注册</router-link>
+        <span>{{ t('login.noAccount') }}</span>
+        <router-link to="/register">{{ t('login.register') }}</router-link>
       </div>
     </el-card>
   </div>
@@ -29,12 +29,14 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { landingPath } from '../router';
 import { ElMessage } from 'element-plus';
 import { api, errMsg } from '../api';
 import { useAuth } from '../store';
 
 const router = useRouter();
+const { t } = useI18n();
 const auth = useAuth();
 const loading = ref(false);
 const unverified = ref(false);
@@ -49,7 +51,7 @@ async function submit(): Promise<void> {
     });
     const d = data.data;
     auth.setLogin(d.access_token, d.refresh_token, d.user);
-    ElMessage.success(`欢迎, ${d.user.email}(${d.user.actor_type})`);
+    ElMessage.success(t('login.welcome', { email: d.user.email }));
     // 平台账号进开发者管理，开发者按权限进自己的第一个页面
     void router.push(landingPath());
   } catch (e) {
@@ -66,7 +68,7 @@ async function resend(): Promise<void> {
   try {
     const { data } = await api.post('/admin/v1/auth/resend-verification', { email: form.email });
     const dev = data.data.dev_code as string | undefined;
-    ElMessage.success(dev ? `验证码已发送(开发环境: ${dev})` : '验证码已发送，请查收邮件');
+    ElMessage.success(dev ? t('login.resentDev', { code: dev }) : t('login.resent'));
   } catch (e) {
     ElMessage.error(errMsg(e));
   }

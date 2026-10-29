@@ -1,0 +1,1358 @@
+{
+ "developers": {
+  "title": {
+   "zh": "开发者账号",
+   "en": "Developer accounts"
+  },
+  "subtitle": {
+   "zh": "平台只管理账号本身与用量汇总，不介入各开发者内部的授权码、用户与设备。",
+   "en": "The platform only manages accounts and usage summaries; it never touches a developer's licenses, users or devices."
+  },
+  "colName": {
+   "zh": "开发者",
+   "en": "Developer"
+  },
+  "colCode": {
+   "zh": "租户码",
+   "en": "Tenant code"
+  },
+  "colStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "colMembers": {
+   "zh": "成员",
+   "en": "Members"
+  },
+  "colApps": {
+   "zh": "应用",
+   "en": "Apps"
+  },
+  "colLicenses": {
+   "zh": "授权码",
+   "en": "Licenses"
+  },
+  "colLastActivity": {
+   "zh": "最近活动",
+   "en": "Last activity"
+  },
+  "statusActive": {
+   "zh": "正常",
+   "en": "Active"
+  },
+  "statusSuspended": {
+   "zh": "已停用",
+   "en": "Suspended"
+  },
+  "suspend": {
+   "zh": "停用",
+   "en": "Suspend"
+  },
+  "resume": {
+   "zh": "恢复",
+   "en": "Resume"
+  },
+  "empty": {
+   "zh": "还没有开发者注册",
+   "en": "No developers have signed up yet"
+  },
+  "confirmSuspendTitle": {
+   "zh": "停用开发者账号",
+   "en": "Suspend developer account"
+  },
+  "confirmSuspend": {
+   "zh": "停用后「{name}」下所有成员将无法登录，其客户端心跳也会被拒绝。确认停用？",
+   "en": "After suspending \"{name}\", all members cannot sign in and client heartbeats will be rejected. Continue?"
+  },
+  "suspended": {
+   "zh": "已停用",
+   "en": "Suspended"
+  },
+  "resumed": {
+   "zh": "已恢复",
+   "en": "Resumed"
+  }
+ },
+ "licenses": {
+  "title": {
+   "zh": "授权码",
+   "en": "Licenses"
+  },
+  "subtitle": {
+   "zh": "查看激活状态、绑定设备和有效期，执行续期、吊销与设备解绑。",
+   "en": "Inspect activation state, bound devices and expiry; renew, revoke or release devices."
+  },
+  "filterPlaceholder": {
+   "zh": "全部状态",
+   "en": "All statuses"
+  },
+  "colCode": {
+   "zh": "授权码",
+   "en": "License code"
+  },
+  "colKind": {
+   "zh": "类型",
+   "en": "Type"
+  },
+  "colStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "colDevices": {
+   "zh": "设备",
+   "en": "Devices"
+  },
+  "colActivatedAt": {
+   "zh": "激活时间",
+   "en": "Activated"
+  },
+  "colExpiresAt": {
+   "zh": "到期时间",
+   "en": "Expires"
+  },
+  "open": {
+   "zh": "详情/设备",
+   "en": "Details / devices"
+  },
+  "renew": {
+   "zh": "续期",
+   "en": "Renew"
+  },
+  "revoke": {
+   "zh": "吊销",
+   "en": "Revoke"
+  },
+  "drawerTitle": {
+   "zh": "授权详情",
+   "en": "License details"
+  },
+  "fieldStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "fieldKind": {
+   "zh": "类型",
+   "en": "Type"
+  },
+  "fieldDeviceLimit": {
+   "zh": "设备上限",
+   "en": "Device limit"
+  },
+  "fieldSeatLimit": {
+   "zh": "席位上限",
+   "en": "Seat limit"
+  },
+  "fieldFeatures": {
+   "zh": "功能权益",
+   "en": "Entitlements"
+  },
+  "fieldLicenseId": {
+   "zh": "许可证 ID",
+   "en": "License ID"
+  },
+  "deliver": {
+   "zh": "发送给客户",
+   "en": "Send to customer"
+  },
+  "deliverHint": {
+   "zh": "不填邮箱时发给该授权绑定的组织联系人",
+   "en": "Leave the email empty to use the organisation contact on this license"
+  },
+  "currentDevices": {
+   "zh": "当前设备",
+   "en": "Bound devices"
+  },
+  "emptyActivations": {
+   "zh": "暂无设备激活",
+   "en": "No devices activated"
+  },
+  "colDevice": {
+   "zh": "设备",
+   "en": "Device"
+  },
+  "colPlatform": {
+   "zh": "平台",
+   "en": "Platform"
+  },
+  "colLastSeen": {
+   "zh": "最近心跳",
+   "en": "Last seen"
+  },
+  "release": {
+   "zh": "解绑",
+   "en": "Release"
+  },
+  "orgSeat": {
+   "zh": "组织席位",
+   "en": "Organisation seat"
+  },
+  "deliveryRecords": {
+   "zh": "交付记录",
+   "en": "Delivery history"
+  },
+  "totalCount": {
+   "zh": "共 {n} 次",
+   "en": "{n} deliveries"
+  },
+  "sentCount": {
+   "zh": "成功 {n}",
+   "en": "{n} sent"
+  },
+  "failedCount": {
+   "zh": "失败 {n}",
+   "en": "{n} failed"
+  },
+  "lastSentAt": {
+   "zh": "最近成功 {at}",
+   "en": "Last sent {at}"
+  },
+  "colRecipient": {
+   "zh": "收件人",
+   "en": "Recipient"
+  },
+  "colCodeCount": {
+   "zh": "码数",
+   "en": "Codes"
+  },
+  "colResult": {
+   "zh": "结果",
+   "en": "Result"
+  },
+  "delivered": {
+   "zh": "已送达",
+   "en": "Delivered"
+  },
+  "failed": {
+   "zh": "失败",
+   "en": "Failed"
+  },
+  "colTime": {
+   "zh": "时间",
+   "en": "Time"
+  },
+  "colError": {
+   "zh": "错误",
+   "en": "Error"
+  },
+  "noDeliveries": {
+   "zh": "还没有交付记录",
+   "en": "No deliveries yet"
+  },
+  "lifecycle": {
+   "zh": "生命周期",
+   "en": "Lifecycle"
+  },
+  "noTimeline": {
+   "zh": "暂无记录",
+   "en": "No events yet"
+  },
+  "renewTitle": {
+   "zh": "续期 {code}",
+   "en": "Renew {code}"
+  },
+  "renewDays": {
+   "zh": "续期天数",
+   "en": "Days to extend"
+  },
+  "renewInvalid": {
+   "zh": "请输入正整数天数",
+   "en": "Enter a positive whole number of days"
+  },
+  "renewed": {
+   "zh": "续期成功",
+   "en": "Renewed"
+  },
+  "revokeTitle": {
+   "zh": "吊销 {code}",
+   "en": "Revoke {code}"
+  },
+  "revokeReason": {
+   "zh": "吊销原因（必填，将进入审计日志）",
+   "en": "Reason for revocation (required, goes to the audit log)"
+  },
+  "reasonRequired": {
+   "zh": "原因不能为空",
+   "en": "Reason is required"
+  },
+  "revokedOk": {
+   "zh": "已吊销，客户端下次校验立即失效",
+   "en": "Revoked — the client will fail validation on its next check"
+  },
+  "releaseTitle": {
+   "zh": "解绑设备",
+   "en": "Release device"
+  },
+  "releaseReason": {
+   "zh": "解绑原因（必填）",
+   "en": "Reason for release (required)"
+  },
+  "released": {
+   "zh": "设备已解绑，客户端 token 已立即失效",
+   "en": "Device released — its client token is already invalid"
+  },
+  "deliverTitle": {
+   "zh": "发送授权码给客户",
+   "en": "Send license to customer"
+  },
+  "deliverPrompt": {
+   "zh": "收件邮箱（留空则发送给该授权绑定的组织联系人）",
+   "en": "Recipient email (leave empty to use the licence's organisation contact)"
+  },
+  "deliverOk": {
+   "zh": "已发送到 {to}",
+   "en": "Sent to {to}"
+  },
+  "deliverFail": {
+   "zh": "发送失败: {err}",
+   "en": "Delivery failed: {err}"
+  },
+  "unknownReason": {
+   "zh": "未知原因",
+   "en": "unknown reason"
+  },
+  "status.issued": {
+   "zh": "未激活",
+   "en": "Not activated"
+  },
+  "status.activated": {
+   "zh": "已激活",
+   "en": "Activated"
+  },
+  "status.suspended": {
+   "zh": "已暂停",
+   "en": "Suspended"
+  },
+  "status.revoked": {
+   "zh": "已吊销",
+   "en": "Revoked"
+  },
+  "status.expired": {
+   "zh": "已过期",
+   "en": "Expired"
+  },
+  "status.active": {
+   "zh": "正常",
+   "en": "Active"
+  },
+  "timeline.issued": {
+   "zh": "授权码生成",
+   "en": "License issued"
+  },
+  "timeline.activated": {
+   "zh": "首次激活",
+   "en": "First activation"
+  },
+  "timeline.device_activated": {
+   "zh": "设备绑定",
+   "en": "Device bound"
+  },
+  "timeline.device_released": {
+   "zh": "设备解绑",
+   "en": "Device released"
+  },
+  "timeline.renewed": {
+   "zh": "续期",
+   "en": "Renewed"
+  },
+  "timeline.suspended": {
+   "zh": "暂停",
+   "en": "Suspended"
+  },
+  "timeline.revoked": {
+   "zh": "吊销",
+   "en": "Revoked"
+  },
+  "timeline.expire_warning": {
+   "zh": "到期提醒",
+   "en": "Expiry warning"
+  }
+ },
+ "batches": {
+  "title": {
+   "zh": "批次与发码",
+   "en": "Batches & issuing"
+  },
+  "subtitle": {
+   "zh": "按已配置的产品、授权策略和渠道生成授权码。明文仅展示一次。",
+   "en": "Generate license codes from configured products, policies and channels. Plaintext is shown once."
+  },
+  "noticeNeedCatalog": {
+   "zh": "请先在「产品与渠道」中创建产品、授权策略和渠道。",
+   "en": "Create a product, policy and channel under \"Products & channels\" first."
+  },
+  "fieldProduct": {
+   "zh": "产品",
+   "en": "Product"
+  },
+  "productPlaceholder": {
+   "zh": "选择产品",
+   "en": "Select a product"
+  },
+  "fieldPolicy": {
+   "zh": "授权策略",
+   "en": "Policy"
+  },
+  "policyPlaceholder": {
+   "zh": "选择策略",
+   "en": "Select a policy"
+  },
+  "fieldChannel": {
+   "zh": "渠道",
+   "en": "Channel"
+  },
+  "channelPlaceholder": {
+   "zh": "可选",
+   "en": "Optional"
+  },
+  "fieldQuantity": {
+   "zh": "数量",
+   "en": "Quantity"
+  },
+  "fieldNote": {
+   "zh": "备注",
+   "en": "Note"
+  },
+  "notePlaceholder": {
+   "zh": "如：2026 春季渠道铺货",
+   "en": "e.g. Spring 2026 channel rollout"
+  },
+  "issue": {
+   "zh": "生成授权码",
+   "en": "Generate codes"
+  },
+  "perpetual": {
+   "zh": "永久",
+   "en": "perpetual"
+  },
+  "deviceCount": {
+   "zh": "设备 {n} 台",
+   "en": "{n} devices"
+  },
+  "seatCount": {
+   "zh": "席位 {n}",
+   "en": "seats {n}"
+  },
+  "offlineDays": {
+   "zh": "离线 {n} 天",
+   "en": "offline {n} d"
+  },
+  "features": {
+   "zh": "权益 {list}",
+   "en": "entitlements {list}"
+  },
+  "codesTitle": {
+   "zh": "本批 {n} 个码",
+   "en": "{n} codes in this batch"
+  },
+  "copyAll": {
+   "zh": "复制全部",
+   "en": "Copy all"
+  },
+  "sectionTitle": {
+   "zh": "发码批次",
+   "en": "Batches"
+  },
+  "colBatchCode": {
+   "zh": "批次号",
+   "en": "Batch"
+  },
+  "colQuantity": {
+   "zh": "数量",
+   "en": "Qty"
+  },
+  "colIssued": {
+   "zh": "已发",
+   "en": "Issued"
+  },
+  "colFailed": {
+   "zh": "失败",
+   "en": "Failed"
+  },
+  "colStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "colNote": {
+   "zh": "备注",
+   "en": "Note"
+  },
+  "issuedOk": {
+   "zh": "已发 {n} 个码",
+   "en": "{n} codes issued"
+  },
+  "copied": {
+   "zh": "授权码已复制",
+   "en": "License codes copied"
+  }
+ },
+ "deviceRequests": {
+  "title": {
+   "zh": "待批准设备",
+   "en": "Pending devices"
+  },
+  "subtitle": {
+   "zh": "客户端上报设备后生成短码，用户把短码报给你，批准后客户端自动完成激活。",
+   "en": "A client without a code reports its device and shows a short code; once you approve it, the client activates itself."
+  },
+  "filterPending": {
+   "zh": "待批准",
+   "en": "Pending"
+  },
+  "filterApproved": {
+   "zh": "已批准",
+   "en": "Approved"
+  },
+  "filterRejected": {
+   "zh": "已拒绝",
+   "en": "Rejected"
+  },
+  "filterExpired": {
+   "zh": "已过期",
+   "en": "Expired"
+  },
+  "colCode": {
+   "zh": "设备码",
+   "en": "Device code"
+  },
+  "colProduct": {
+   "zh": "产品",
+   "en": "Product"
+  },
+  "colPlatform": {
+   "zh": "平台",
+   "en": "Platform"
+  },
+  "colVersion": {
+   "zh": "版本",
+   "en": "Version"
+  },
+  "colUser": {
+   "zh": "用户标识",
+   "en": "User"
+  },
+  "colRequestedAt": {
+   "zh": "申请时间",
+   "en": "Requested"
+  },
+  "colExpiresAt": {
+   "zh": "过期时间",
+   "en": "Expires"
+  },
+  "approve": {
+   "zh": "批准",
+   "en": "Approve"
+  },
+  "reject": {
+   "zh": "拒绝",
+   "en": "Reject"
+  },
+  "empty": {
+   "zh": "没有待处理的设备申请",
+   "en": "No device requests to review"
+  },
+  "dialogTitle": {
+   "zh": "批准设备激活",
+   "en": "Approve device activation"
+  },
+  "fieldCode": {
+   "zh": "设备码",
+   "en": "Device code"
+  },
+  "fieldPolicy": {
+   "zh": "应用策略",
+   "en": "Policy"
+  },
+  "policyPlaceholder": {
+   "zh": "选择策略",
+   "en": "Select a policy"
+  },
+  "policyOption": {
+   "zh": "{name}（{days} / {devices} 设备）",
+   "en": "{name} ({days} / {devices} devices)"
+  },
+  "days": {
+   "zh": "{n} 天",
+   "en": "{n} days"
+  },
+  "perpetual": {
+   "zh": "永久",
+   "en": "perpetual"
+  },
+  "tip": {
+   "zh": "批准后会按该策略生成一张新授权码，绑定到申请设备。",
+   "en": "Approving creates a new license code from this policy and binds it to the requesting device."
+  },
+  "approved": {
+   "zh": "已批准，客户端下次轮询即可拿到授权码",
+   "en": "Approved — the client will receive its code on the next poll"
+  },
+  "rejectTitle": {
+   "zh": "拒绝 {code}",
+   "en": "Reject {code}"
+  },
+  "rejectPrompt": {
+   "zh": "拒绝原因（客户端会看到）",
+   "en": "Reason for rejection (shown to the client)"
+  },
+  "rejectPlaceholder": {
+   "zh": "如：未购买 / 设备信息异常",
+   "en": "e.g. not purchased / suspicious device"
+  },
+  "rejected": {
+   "zh": "已拒绝",
+   "en": "Rejected"
+  }
+ },
+ "members": {
+  "title": {
+   "zh": "团队成员",
+   "en": "Team members"
+  },
+  "subtitle": {
+   "zh": "自己给自己团队加人、分配角色。平台后台不参与这一步。",
+   "en": "Add people to your own team and assign roles. The platform never takes part in this."
+  },
+  "addMember": {
+   "zh": "添加成员",
+   "en": "Add member"
+  },
+  "colEmail": {
+   "zh": "邮箱",
+   "en": "Email"
+  },
+  "colRole": {
+   "zh": "角色",
+   "en": "Role"
+  },
+  "colChannel": {
+   "zh": "渠道",
+   "en": "Channel"
+  },
+  "colStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "colLastLogin": {
+   "zh": "最近登录",
+   "en": "Last sign-in"
+  },
+  "changeRole": {
+   "zh": "改角色",
+   "en": "Change role"
+  },
+  "resetPassword": {
+   "zh": "重置密码",
+   "en": "Reset password"
+  },
+  "disable": {
+   "zh": "停用",
+   "en": "Disable"
+  },
+  "enable": {
+   "zh": "启用",
+   "en": "Enable"
+  },
+  "self": {
+   "zh": "（本人）",
+   "en": "(you)"
+  },
+  "statusActive": {
+   "zh": "正常",
+   "en": "Active"
+  },
+  "statusDisabled": {
+   "zh": "已停用",
+   "en": "Disabled"
+  },
+  "createTitle": {
+   "zh": "添加成员",
+   "en": "Add member"
+  },
+  "initialPassword": {
+   "zh": "初始密码",
+   "en": "Initial password"
+  },
+  "passwordPlaceholder": {
+   "zh": "至少 8 位",
+   "en": "At least 8 characters"
+  },
+  "roleField": {
+   "zh": "角色",
+   "en": "Role"
+  },
+  "channelField": {
+   "zh": "所属渠道",
+   "en": "Channel"
+  },
+  "channelPlaceholder": {
+   "zh": "渠道账号只能看到本渠道的授权码",
+   "en": "A channel account only sees licences issued in its own channel"
+  },
+  "resetTitle": {
+   "zh": "重置密码",
+   "en": "Reset password"
+  },
+  "memberField": {
+   "zh": "成员",
+   "en": "Member"
+  },
+  "newPassword": {
+   "zh": "新密码",
+   "en": "New password"
+  },
+  "resetTip": {
+   "zh": "重置后该成员的所有登录会话会被吊销，需要重新登录。",
+   "en": "All sessions for this member are revoked and they must sign in again."
+  },
+  "reset": {
+   "zh": "重置",
+   "en": "Reset"
+  },
+  "roleTitle": {
+   "zh": "修改角色",
+   "en": "Change role"
+  },
+  "roles.developer_owner": {
+   "zh": "开发者(所有者)",
+   "en": "Developer (owner)"
+  },
+  "roles.developer_operator": {
+   "zh": "运营",
+   "en": "Operator"
+  },
+  "roles.developer_support": {
+   "zh": "客服",
+   "en": "Support"
+  },
+  "roles.developer_finance": {
+   "zh": "财务/审计",
+   "en": "Finance / audit"
+  },
+  "roles.developer_partner": {
+   "zh": "渠道",
+   "en": "Channel"
+  },
+  "created": {
+   "zh": "成员已创建",
+   "en": "Member created"
+  },
+  "roleSaved": {
+   "zh": "角色已更新",
+   "en": "Role updated"
+  },
+  "disabled": {
+   "zh": "已停用",
+   "en": "Disabled"
+  },
+  "enabled": {
+   "zh": "已启用",
+   "en": "Enabled"
+  },
+  "pwdTooShort": {
+   "zh": "密码至少 8 位",
+   "en": "Password must be at least 8 characters"
+  },
+  "pwdReset": {
+   "zh": "密码已重置，该成员需重新登录",
+   "en": "Password reset — the member must sign in again"
+  }
+ },
+ "customers": {
+  "title": {
+   "zh": "终端客户",
+   "en": "End customers"
+  },
+  "subtitle": {
+   "zh": "为组织授权配置联系邮箱，到期提醒才会真正投递。",
+   "en": "Set a contact email on organisation licences so expiry reminders can actually be delivered."
+  },
+  "colName": {
+   "zh": "客户名称",
+   "en": "Customer"
+  },
+  "colType": {
+   "zh": "类型",
+   "en": "Type"
+  },
+  "colEmail": {
+   "zh": "联系邮箱",
+   "en": "Contact email"
+  },
+  "configured": {
+   "zh": "已配置",
+   "en": "Set"
+  },
+  "notConfigured": {
+   "zh": "未配置",
+   "en": "Not set"
+  },
+  "colLicenses": {
+   "zh": "授权数",
+   "en": "Licences"
+  },
+  "colStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "setEmail": {
+   "zh": "设置邮箱",
+   "en": "Set email"
+  },
+  "changeEmail": {
+   "zh": "更换邮箱",
+   "en": "Change email"
+  },
+  "dialogTitle": {
+   "zh": "维护联系邮箱",
+   "en": "Contact email"
+  },
+  "fieldCustomer": {
+   "zh": "客户",
+   "en": "Customer"
+  },
+  "emailPlaceholder": {
+   "zh": "ops@example.com; 留空表示清除",
+   "en": "ops@example.com — leave empty to clear"
+  },
+  "updated": {
+   "zh": "联系邮箱已更新",
+   "en": "Contact email updated"
+  }
+ },
+ "reports": {
+  "title": {
+   "zh": "渠道/批次统计(激活率、活跃、退款回收)",
+   "en": "Channel / batch stats (activation rate, active, refunded)"
+  },
+  "colBatch": {
+   "zh": "批次",
+   "en": "Batch"
+  },
+  "colChannel": {
+   "zh": "渠道",
+   "en": "Channel"
+  },
+  "colQuantity": {
+   "zh": "发码量",
+   "en": "Issued"
+  },
+  "colActivated": {
+   "zh": "已激活",
+   "en": "Activated"
+  },
+  "colActive": {
+   "zh": "活跃",
+   "en": "Active"
+  },
+  "colRevoked": {
+   "zh": "吊销(退款)",
+   "en": "Revoked (refund)"
+  },
+  "colRate": {
+   "zh": "激活率",
+   "en": "Activation rate"
+  }
+ },
+ "audit": {
+  "title": {
+   "zh": "审计日志(租户级哈希链, 防篡改)",
+   "en": "Audit log (per-tenant hash chain, tamper-evident)"
+  },
+  "verify": {
+   "zh": "验链",
+   "en": "Verify chain"
+  },
+  "verified": {
+   "zh": "链完整(校验 {n} 条)",
+   "en": "Chain intact ({n} entries)"
+  },
+  "broken": {
+   "zh": "链断裂 @ id={id}",
+   "en": "Chain broken at id={id}"
+  },
+  "colTime": {
+   "zh": "时间",
+   "en": "Time"
+  },
+  "colActor": {
+   "zh": "角色",
+   "en": "Actor"
+  },
+  "colAction": {
+   "zh": "操作",
+   "en": "Action"
+  },
+  "colResource": {
+   "zh": "资源",
+   "en": "Resource"
+  },
+  "colResourceId": {
+   "zh": "资源ID",
+   "en": "Resource ID"
+  },
+  "colDetail": {
+   "zh": "详情",
+   "en": "Detail"
+  }
+ },
+ "apiKeys": {
+  "title": {
+   "zh": "API Key(开放 API, 明文仅创建时可见一次)",
+   "en": "API keys (open API; plaintext is shown once at creation)"
+  },
+  "create": {
+   "zh": "新建",
+   "en": "New"
+  },
+  "colName": {
+   "zh": "名称",
+   "en": "Name"
+  },
+  "colPrefix": {
+   "zh": "前缀",
+   "en": "Prefix"
+  },
+  "colScopes": {
+   "zh": "scopes",
+   "en": "Scopes"
+  },
+  "colRateLimit": {
+   "zh": "限流 QPS",
+   "en": "Rate limit (QPS)"
+  },
+  "colStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "colLastUsed": {
+   "zh": "最近使用",
+   "en": "Last used"
+  },
+  "rotate": {
+   "zh": "轮换",
+   "en": "Rotate"
+  },
+  "revoke": {
+   "zh": "吊销",
+   "en": "Revoke"
+  },
+  "dialogTitle": {
+   "zh": "新建 API Key",
+   "en": "New API key"
+  },
+  "namePlaceholder": {
+   "zh": "如: 客户业务系统-生产",
+   "en": "e.g. customer backend — production"
+  },
+  "scopeValidate": {
+   "zh": "validate(服务端校验)",
+   "en": "validate (server-side check)"
+  },
+  "createdTitle": {
+   "zh": "请立即保存 API Key(关闭后不再显示)",
+   "en": "Save this API key now (it will not be shown again)"
+  },
+  "rotateConfirm": {
+   "zh": "旧 Key 将保留 7 天重叠期后失效, 确认轮换?",
+   "en": "The old key keeps working for a 7-day overlap, then expires. Rotate?"
+  },
+  "rotateTitle": {
+   "zh": "轮换 {name}",
+   "en": "Rotate {name}"
+  },
+  "revokeConfirm": {
+   "zh": "吊销后立即失效(缓存/网关 1 分钟内全量生效), 确认?",
+   "en": "Revoking takes effect immediately (fully propagated within a minute). Continue?"
+  },
+  "revokeTitle": {
+   "zh": "吊销 {name}",
+   "en": "Revoke {name}"
+  },
+  "revoked": {
+   "zh": "已吊销",
+   "en": "Revoked"
+  }
+ },
+ "webhooks": {
+  "title": {
+   "zh": "Webhook 投递",
+   "en": "Webhook delivery"
+  },
+  "subtitle": {
+   "zh": "HMAC 签名投递，失败自动退避；连续失败会熔断，避免拖垮业务系统。",
+   "en": "HMAC-signed delivery with exponential backoff; repeated failures trip a circuit breaker so your systems are not overwhelmed."
+  },
+  "newEndpoint": {
+   "zh": "新建端点",
+   "en": "New endpoint"
+  },
+  "colUrl": {
+   "zh": "回调地址",
+   "en": "Callback URL"
+  },
+  "colEvents": {
+   "zh": "订阅事件",
+   "en": "Events"
+  },
+  "colStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "colFailureCount": {
+   "zh": "熔断次数",
+   "en": "Trips"
+  },
+  "colDisabledUntil": {
+   "zh": "自动恢复时间",
+   "en": "Auto-resume at"
+  },
+  "rotateSecret": {
+   "zh": "轮换密钥",
+   "en": "Rotate secret"
+  },
+  "restore": {
+   "zh": "恢复",
+   "en": "Restore"
+  },
+  "dialogTitle": {
+   "zh": "新建 Webhook 端点",
+   "en": "New webhook endpoint"
+  },
+  "urlPlaceholder": {
+   "zh": "https://example.com/webhooks/license",
+   "en": "https://example.com/webhooks/license"
+  },
+  "allEvents": {
+   "zh": "全部事件 (*)",
+   "en": "All events (*)"
+  },
+  "secretTitle": {
+   "zh": "请立即保存签名密钥",
+   "en": "Save the signing secret now"
+  },
+  "secretNote": {
+   "zh": "该密钥只显示一次，关闭后无法再次查看。",
+   "en": "The secret is shown only once and cannot be retrieved later."
+  },
+  "rotateConfirm": {
+   "zh": "旧密钥会立即失效，确认轮换?",
+   "en": "The old secret stops working immediately. Rotate?"
+  },
+  "rotateTitle": {
+   "zh": "轮换 {url}",
+   "en": "Rotate {url}"
+  },
+  "resetConfirm": {
+   "zh": "将端点恢复为 active 并从 1 分钟冷却重新计数。",
+   "en": "Restore the endpoint to active and restart the cooldown ladder at one minute."
+  },
+  "resetTitle": {
+   "zh": "恢复 {url}",
+   "en": "Restore {url}"
+  },
+  "restored": {
+   "zh": "端点已恢复",
+   "en": "Endpoint restored"
+  }
+ },
+ "catalog": {
+  "title": {
+   "zh": "产品与授权策略",
+   "en": "Products & policies"
+  },
+  "subtitle": {
+   "zh": "产品决定授权码前缀，策略决定有效期、设备数、席位与功能权益。",
+   "en": "A product sets the license-code prefix; a policy sets validity, devices, seats and entitlements."
+  },
+  "tabProducts": {
+   "zh": "产品",
+   "en": "Products"
+  },
+  "tabPolicies": {
+   "zh": "授权策略",
+   "en": "Policies"
+  },
+  "tabChannels": {
+   "zh": "渠道",
+   "en": "Channels"
+  },
+  "countProducts": {
+   "zh": "共 {n} 个产品",
+   "en": "{n} products"
+  },
+  "countPolicies": {
+   "zh": "共 {n} 个策略",
+   "en": "{n} policies"
+  },
+  "countChannels": {
+   "zh": "共 {n} 个渠道",
+   "en": "{n} channels"
+  },
+  "newProduct": {
+   "zh": "新建产品",
+   "en": "New product"
+  },
+  "newPolicy": {
+   "zh": "新建策略",
+   "en": "New policy"
+  },
+  "newChannel": {
+   "zh": "新建渠道",
+   "en": "New channel"
+  },
+  "colProductCode": {
+   "zh": "产品编码",
+   "en": "Product code"
+  },
+  "colProductName": {
+   "zh": "产品名称",
+   "en": "Product name"
+  },
+  "colProductId": {
+   "zh": "产品 ID",
+   "en": "Product ID"
+  },
+  "colChannelCode": {
+   "zh": "渠道编码",
+   "en": "Channel code"
+  },
+  "colChannelName": {
+   "zh": "渠道名称",
+   "en": "Channel name"
+  },
+  "colChannelId": {
+   "zh": "渠道 ID",
+   "en": "Channel ID"
+  },
+  "colPolicyName": {
+   "zh": "策略名称",
+   "en": "Policy name"
+  },
+  "colProduct": {
+   "zh": "产品",
+   "en": "Product"
+  },
+  "colKind": {
+   "zh": "类型",
+   "en": "Type"
+  },
+  "colValidity": {
+   "zh": "有效期",
+   "en": "Validity"
+  },
+  "colDevices": {
+   "zh": "设备数",
+   "en": "Devices"
+  },
+  "colSeats": {
+   "zh": "席位",
+   "en": "Seats"
+  },
+  "colFeatures": {
+   "zh": "功能",
+   "en": "Features"
+  },
+  "colStatus": {
+   "zh": "状态",
+   "en": "Status"
+  },
+  "days": {
+   "zh": "{n} 天",
+   "en": "{n} days"
+  },
+  "perpetual": {
+   "zh": "永久",
+   "en": "Perpetual"
+  },
+  "codePlaceholder": {
+   "zh": "如 school-dorm",
+   "en": "e.g. school-dorm"
+  },
+  "namePlaceholder": {
+   "zh": "如 校园宿舍管理系统",
+   "en": "e.g. Campus dorm management"
+  },
+  "channelCodePlaceholder": {
+   "zh": "如 east-partner",
+   "en": "e.g. east-partner"
+  },
+  "channelNamePlaceholder": {
+   "zh": "如 华东代理商",
+   "en": "e.g. East China reseller"
+  },
+  "createPolicyTitle": {
+   "zh": "新建授权策略",
+   "en": "New policy"
+  },
+  "fieldCode": {
+   "zh": "策略编码",
+   "en": "Policy code"
+  },
+  "fieldName": {
+   "zh": "策略名称",
+   "en": "Policy name"
+  },
+  "policyNamePlaceholder": {
+   "zh": "标准版 365 天",
+   "en": "Standard 365 days"
+  },
+  "fieldKind": {
+   "zh": "授权类型",
+   "en": "License type"
+  },
+  "kind.standard": {
+   "zh": "标准",
+   "en": "Standard"
+  },
+  "kind.trial": {
+   "zh": "试用",
+   "en": "Trial"
+  },
+  "kind.perpetual": {
+   "zh": "永久",
+   "en": "Perpetual"
+  },
+  "kind.subscription": {
+   "zh": "订阅",
+   "en": "Subscription"
+  },
+  "kind.floating": {
+   "zh": "浮动",
+   "en": "Floating"
+  },
+  "fieldDuration": {
+   "zh": "有效期(天)",
+   "en": "Validity (days)"
+  },
+  "fieldDeviceLimit": {
+   "zh": "设备数上限",
+   "en": "Device limit"
+  },
+  "fieldSeatLimit": {
+   "zh": "席位上限",
+   "en": "Seat limit"
+  },
+  "fieldConcurrency": {
+   "zh": "并发上限",
+   "en": "Concurrency limit"
+  },
+  "fieldOffline": {
+   "zh": "离线窗口(天)",
+   "en": "Offline window (days)"
+  },
+  "fieldHeartbeat": {
+   "zh": "心跳间隔(小时)",
+   "en": "Heartbeat interval (hours)"
+  },
+  "fieldRenewWindow": {
+   "zh": "续期窗口(天)",
+   "en": "Renewal window (days)"
+  },
+  "fieldFeatures": {
+   "zh": "功能权益",
+   "en": "Entitlements"
+  },
+  "featuresPlaceholder": {
+   "zh": "dorm,leave,report (逗号分隔)",
+   "en": "dorm,leave,report (comma separated)"
+  },
+  "allowRenewal": {
+   "zh": "允许续期",
+   "en": "Allow renewal"
+  },
+  "minVersion": {
+   "zh": "最低客户端版本",
+   "en": "Minimum client version"
+  },
+  "minVersionPlaceholder": {
+   "zh": ">=2.0.0，可留空",
+   "en": ">=2.0.0, optional"
+  },
+  "createPolicy": {
+   "zh": "创建策略",
+   "en": "Create policy"
+  },
+  "editProductTitle": {
+   "zh": "编辑产品",
+   "en": "Edit product"
+  },
+  "editChannelTitle": {
+   "zh": "编辑渠道",
+   "en": "Edit channel"
+  },
+  "editPolicyTitle": {
+   "zh": "编辑策略",
+   "en": "Edit policy"
+  },
+  "enabled": {
+   "zh": "启用",
+   "en": "Active"
+  },
+  "inactive": {
+   "zh": "停用",
+   "en": "Disabled"
+  },
+  "productDisableTip": {
+   "zh": "停用后不能再发新码，已发出的授权不受影响。",
+   "en": "Disabling blocks new codes; licences already issued are unaffected."
+  },
+  "policyEditTip": {
+   "zh": "改动只影响之后新发的授权码；已发出的码保留发码时的字段快照。",
+   "en": "Changes apply only to codes issued afterwards; existing codes keep the snapshot taken when they were issued."
+  },
+  "deviceLimitShort": {
+   "zh": "设备数",
+   "en": "Devices"
+  },
+  "seatLimitShort": {
+   "zh": "席位数",
+   "en": "Seats"
+  },
+  "concurrencyShort": {
+   "zh": "并发数",
+   "en": "Concurrency"
+  },
+  "createdProduct": {
+   "zh": "产品已创建",
+   "en": "Product created"
+  },
+  "createdChannel": {
+   "zh": "渠道已创建",
+   "en": "Channel created"
+  },
+  "createdPolicy": {
+   "zh": "策略已创建",
+   "en": "Policy created"
+  },
+  "updatedProduct": {
+   "zh": "产品已更新",
+   "en": "Product updated"
+  },
+  "updatedChannel": {
+   "zh": "渠道已更新",
+   "en": "Channel updated"
+  },
+  "updatedPolicy": {
+   "zh": "策略已更新",
+   "en": "Policy updated"
+  },
+  "deleted": {
+   "zh": "已删除",
+   "en": "Deleted"
+  },
+  "deleteConfirm": {
+   "zh": "确认删除「{name}」？已发过码的对象不能删除，只能停用。",
+   "en": "Delete “{name}”? Objects that have already issued codes cannot be deleted, only disabled."
+  },
+  "deleteTitle": {
+   "zh": "删除确认",
+   "en": "Confirm deletion"
+  }
+ },
+ "register": {
+  "resentCode": {
+   "zh": "验证码已重新发送",
+   "en": "Verification code resent"
+  }
+ }
+}

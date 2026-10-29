@@ -3,46 +3,46 @@
     <template #header>
       <div class="page-head">
         <div>
-          <h2>终端客户</h2>
-          <p>为组织授权配置联系邮箱，到期提醒才会真正投递。</p>
+          <h2>{{ t('customers.title') }}</h2>
+          <p>{{ t('customers.subtitle') }}</p>
         </div>
-        <el-button :loading="loading" @click="load">刷新</el-button>
+        <el-button :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
       </div>
     </template>
     <el-table :data="rows" v-loading="loading" size="small">
-      <el-table-column prop="name" label="客户名称" min-width="220" />
-      <el-table-column prop="type" label="类型" width="100" />
-      <el-table-column label="联系邮箱" width="130">
+      <el-table-column prop="name" :label="t('customers.colName')" min-width="220" />
+      <el-table-column prop="type" :label="t('customers.colType')" width="100" />
+      <el-table-column :label="t('customers.colEmail')" width="130">
         <template #default="{ row }">
           <el-tag :type="row.has_email ? 'success' : 'warning'" size="small">
-            {{ row.has_email ? '已配置' : '未配置' }}
+            {{ row.has_email ? t('customers.configured') : t('customers.notConfigured') }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="license_count" label="授权数" width="90" />
-      <el-table-column prop="status" label="状态" width="100" />
-      <el-table-column label="操作" width="140">
+      <el-table-column prop="license_count" :label="t('customers.colLicenses')" width="90" />
+      <el-table-column prop="status" :label="t('customers.colStatus')" width="100" />
+      <el-table-column :label="t('common.actions')" width="140">
         <template #default="{ row }">
           <el-button v-if="auth.can('end_customer:write')" link type="primary" @click="edit(row)">
-            {{ row.has_email ? '更换邮箱' : '设置邮箱' }}
+            {{ row.has_email ? t('customers.changeEmail') : t('customers.setEmail') }}
           </el-button>
         </template>
       </el-table-column>
     </el-table>
   </el-card>
 
-  <el-dialog v-model="dialog" title="维护联系邮箱" width="460px">
+  <el-dialog v-model="dialog" :title="t('customers.dialogTitle')" width="460px">
     <el-form label-width="86px">
-      <el-form-item label="客户">
+      <el-form-item :label="t('customers.fieldCustomer')">
         <span>{{ current?.name }}</span>
       </el-form-item>
-      <el-form-item label="邮箱">
-        <el-input v-model="email" placeholder="ops@example.com; 留空表示清除" />
+      <el-form-item :label="t('customers.colEmail')">
+        <el-input v-model="email" :placeholder="t('customers.emailPlaceholder')" />
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="dialog = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+      <el-button @click="dialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="saving" @click="save">{{ t('common.save') }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -52,8 +52,10 @@ import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { api, errMsg } from '../api';
 import { useAuth } from '../store';
+import { useI18n } from 'vue-i18n';
 
 const auth = useAuth();
+const { t } = useI18n();
 
 interface Customer {
   id: string;
@@ -96,7 +98,7 @@ async function save(): Promise<void> {
     await api.put(`/admin/v1/end-customers/${current.value.id}/contact-email`, {
       email: email.value.trim() || null,
     });
-    ElMessage.success('联系邮箱已更新');
+    ElMessage.success(t('customers.updated'));
     dialog.value = false;
     await load();
   } catch (e) {
