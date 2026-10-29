@@ -71,13 +71,38 @@ export class LicenseService {
     const rows = await withTenantTx(this.db, tenantId, (tx) => {
       let q = tx
         .selectFrom('licenses')
-        .select(['id', 'code', 'kind', 'status', 'issued_at', 'activated_at', 'expires_at'])
+        .select([
+          'id',
+          'code',
+          'kind',
+          'status',
+          'issued_at',
+          'activated_at',
+          'expires_at',
+          'device_limit',
+        ])
         .orderBy('created_at', 'desc')
         .limit(limit);
       if (opts.status) q = q.where('status', '=', opts.status as LicenseStatus);
       if (opts.channelId) q = q.where('channel_id', '=', opts.channelId);
       return q.execute();
     });
+    // 设备数单独聚合: 列表里能看出"已激活但一台设备都没绑"的情况
+    const ids = rows.map((r) => r.id);
+    const devRows =
+      ids.length === 0
+        ? []
+        : await withTenantTx(this.db, tenantId, (tx) =>
+            tx
+              .selectFrom('license_activations')
+              .select((eb) => ['license_id', eb.fn.countAll().as('c')])
+              .where('license_id', 'in', ids)
+              .where('status', '=', 'active')
+              .groupBy('license_id')
+              .execute(),
+          );
+    const devCount = new Map(devRows.map((r) => [r.license_id, Number(r.c)]));
+
     return rows.map((r) => ({
       id: r.id,
       code_masked: maskCode(r.code.replace(/-/g, '')),
@@ -86,6 +111,8 @@ export class LicenseService {
       issued_at: r.issued_at.toISOString(),
       activated_at: r.activated_at?.toISOString() ?? null,
       expires_at: r.expires_at?.toISOString() ?? null,
+      active_devices: devCount.get(r.id) ?? 0,
+      device_limit: r.device_limit,
     }));
   }
 

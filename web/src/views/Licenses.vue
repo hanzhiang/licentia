@@ -23,6 +23,13 @@
           <el-tag :type="tagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="设备" width="90">
+        <template #default="{ row }">
+          <el-tag size="small" :type="row.active_devices === 0 ? 'info' : 'success'">
+            {{ row.active_devices ?? 0 }} / {{ row.device_limit ?? '-' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="激活时间" width="180">
         <template #default="{ row }">{{ fmt(row.activated_at) }}</template>
       </el-table-column>
@@ -155,6 +162,8 @@ const auth = useAuth();
 
 interface LicenseRow {
   id: string;
+  active_devices?: number;
+  device_limit?: number;
   code_masked: string;
   kind: string;
   status: string;
@@ -293,6 +302,8 @@ async function release(row: Activation): Promise<void> {
     );
     await api.post(`/admin/v1/activations/${row.activation_id}/release`, { reason: value });
     ElMessage.success('设备已解绑，客户端 token 已立即失效');
+    // 列表里的设备数也要跟着变, 否则看起来"解绑了但还是已激活"
+    await load();
     if (detail.value) await openDetail(detail.value);
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(errMsg(e));

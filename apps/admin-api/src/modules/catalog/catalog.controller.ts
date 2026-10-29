@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '@lp/domain';
@@ -213,5 +224,41 @@ export class CatalogController {
       actorFrom(req),
     );
     void reply.code(200).send({ data });
+  }
+
+  @Delete('products/:id')
+  @RequirePerms('product:write')
+  async deleteProduct(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    await this.service.deleteProduct(tenantId, id, actorFrom(req));
+    void reply.code(204).send();
+  }
+
+  @Delete('policies/:id')
+  @RequirePerms('policy:write')
+  async deletePolicy(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    await this.service.deletePolicy(tenantId, id, actorFrom(req));
+    void reply.code(204).send();
+  }
+
+  @Delete('channels/:id')
+  @RequirePerms('channel:write')
+  async deleteChannel(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    await this.service.deleteChannel(tenantId, id, actorFrom(req));
+    void reply.code(204).send();
   }
 }

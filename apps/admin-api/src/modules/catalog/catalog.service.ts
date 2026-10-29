@@ -460,4 +460,140 @@ export class CatalogService {
       return row;
     });
   }
+
+  /**
+   * 删除产品(软删)。已有授权码的产品不允许删——那会让历史授权失去归属;
+   * 这种情况应改用停用。
+   */
+  async deleteProduct(tenantId: string, id: string, actor: ActorInfo): Promise<void> {
+    await withTenantTx(this.db, tenantId, async (tx) => {
+      const p = await tx
+        .selectFrom('products')
+        .select(['id', 'code', 'name'])
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+      if (!p) throw errProductNotFound();
+
+      const used = await tx
+        .selectFrom('licenses')
+        .select((eb) => eb.fn.countAll().as('c'))
+        .where('product_id', '=', id)
+        .executeTakeFirstOrThrow();
+      if (Number(used.c) > 0) {
+        throw errReqInvalid(`该产品下还有 ${used.c} 个授权码，不能删除；请改用「停用」`);
+      }
+      const pols = await tx
+        .selectFrom('policies')
+        .select((eb) => eb.fn.countAll().as('c'))
+        .where('product_id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirstOrThrow();
+      if (Number(pols.c) > 0) {
+        throw errReqInvalid(`该产品下还有 ${pols.c} 个策略，请先删除策略`);
+      }
+
+      await tx
+        .updateTable('products')
+        .set({ deleted_at: new Date(), updated_at: new Date() })
+        .where('id', '=', id)
+        .execute();
+      await writeAudit(tx, {
+        tenantId,
+        actorType: actor.actorType as 'developer_owner',
+        actorId: actor.userId,
+        action: 'product.delete',
+        resourceType: 'product',
+        resourceId: id,
+        detail: { code: p.code, name: p.name },
+        ip: actor.ip ?? null,
+        requestId: actor.requestId ?? null,
+      });
+    });
+  }
+
+  /** 删除策略(软删)；已发过码的策略不允许删 */
+  async deletePolicy(tenantId: string, id: string, actor: ActorInfo): Promise<void> {
+    await withTenantTx(this.db, tenantId, async (tx) => {
+      const p = await tx
+        .selectFrom('policies')
+        .select(['id', 'code', 'name'])
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+      if (!p) throw errReqInvalid('策略不存在');
+
+      const used = await tx
+        .selectFrom('licenses')
+        .select((eb) => eb.fn.countAll().as('c'))
+        .where('policy_id', '=', id)
+        .executeTakeFirstOrThrow();
+      if (Number(used.c) > 0) {
+        throw errReqInvalid(`该策略已用于 ${used.c} 个授权码，不能删除；请改用「停用」`);
+      }
+
+      await tx
+        .updateTable('policies')
+        .set({ deleted_at: new Date(), updated_at: new Date() })
+        .where('id', '=', id)
+        .execute();
+      await writeAudit(tx, {
+        tenantId,
+        actorType: actor.actorType as 'developer_owner',
+        actorId: actor.userId,
+        action: 'policy.delete',
+        resourceType: 'policy',
+        resourceId: id,
+        detail: { code: p.code, name: p.name },
+        ip: actor.ip ?? null,
+        requestId: actor.requestId ?? null,
+      });
+    });
+  }
+
+  /** 删除渠道(软删)；已发过码或建过批次的渠道不允许删 */
+  async deleteChannel(tenantId: string, id: string, actor: ActorInfo): Promise<void> {
+    await withTenantTx(this.db, tenantId, async (tx) => {
+      const c = await tx
+        .selectFrom('channels')
+        .select(['id', 'code', 'name'])
+        .where('id', '=', id)
+        .where('deleted_at', 'is', null)
+        .executeTakeFirst();
+      if (!c) throw errReqInvalid('渠道不存在');
+
+      const used = await tx
+        .selectFrom('licenses')
+        .select((eb) => eb.fn.countAll().as('c'))
+        .where('channel_id', '=', id)
+        .executeTakeFirstOrThrow();
+      const batches = await tx
+        .selectFrom('license_batches')
+        .select((eb) => eb.fn.countAll().as('c'))
+        .where('channel_id', '=', id)
+        .executeTakeFirstOrThrow();
+      if (Number(used.c) > 0 || Number(batches.c) > 0) {
+        throw errReqInvalid(
+          `该渠道已有 ${batches.c} 个批次 / ${used.c} 个授权码，不能删除；请改用「停用」`,
+        );
+      }
+
+      await tx
+        .updateTable('channels')
+        .set({ deleted_at: new Date() })
+        .where('id', '=', id)
+        .execute();
+      await writeAudit(tx, {
+        tenantId,
+        actorType: actor.actorType as 'developer_operator',
+        actorId: actor.userId,
+        action: 'channel.delete',
+        resourceType: 'channel',
+        resourceId: id,
+        detail: { code: c.code, name: c.name },
+        ip: actor.ip ?? null,
+        requestId: actor.requestId ?? null,
+      });
+    });
+  }
 }

@@ -28,6 +28,9 @@
               <el-button v-if="auth.can('product:write')" link type="primary" @click="openEditProduct(row)">
                 编辑
               </el-button>
+              <el-button v-if="auth.can('product:write')" link type="danger" @click="removeProduct(row)">
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -65,6 +68,9 @@
               <el-button v-if="auth.can('policy:write')" link type="primary" @click="openEditPolicy(row)">
                 编辑
               </el-button>
+              <el-button v-if="auth.can('policy:write')" link type="danger" @click="removePolicy(row)">
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -86,6 +92,9 @@
             <template #default="{ row }">
               <el-button v-if="auth.can('channel:write')" link type="primary" @click="openEditChannel(row)">
                 编辑
+              </el-button>
+              <el-button v-if="auth.can('channel:write')" link type="danger" @click="removeChannel(row)">
+                删除
               </el-button>
             </template>
           </el-table-column>
@@ -284,7 +293,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { api, errMsg } from '../api';
 import { useAuth } from '../store';
 
@@ -572,6 +581,28 @@ async function savePolicy(): Promise<void> {
     saving.value = false;
   }
 }
+
+async function remove(kind: 'products' | 'policies' | 'channels', row: { name: string; id: string }): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除「${row.name}」？已发过码的对象不能删除，只能停用。`,
+      '删除确认',
+      { type: 'warning' },
+    );
+  } catch {
+    return;
+  }
+  try {
+    await api.delete(`/admin/v1/catalog/${kind}/${row.id}`);
+    ElMessage.success('已删除');
+    await load();
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  }
+}
+const removeProduct = (row: Product) => remove('products', row);
+const removePolicy = (row: Policy) => remove('policies', row);
+const removeChannel = (row: Channel) => remove('channels', row);
 
 onMounted(load);
 </script>
