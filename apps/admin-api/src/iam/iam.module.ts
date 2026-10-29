@@ -22,6 +22,7 @@ export interface UserRow {
   status: string;
   email_verified_at: Date | null;
   channel_id: string | null;
+  mfa_enabled: boolean;
 }
 
 /** 角色主类型映射(审计 actor_type 用) */
@@ -48,7 +49,15 @@ export class RbacService {
     const row = await withSystemTx(this.db, async (tx) =>
       await tx
         .selectFrom('users')
-        .select(['id', 'tenant_id', 'email', 'status', 'email_verified_at', 'channel_id'])
+        .select([
+          'id',
+          'tenant_id',
+          'email',
+          'status',
+          'email_verified_at',
+          'channel_id',
+          'mfa_enabled',
+        ])
         .where('id', '=', userId)
         .executeTakeFirst(),
     );
@@ -59,7 +68,15 @@ export class RbacService {
     const row = await withSystemTx(this.db, async (tx) =>
       await tx
         .selectFrom('users')
-        .select(['id', 'tenant_id', 'email', 'status', 'email_verified_at', 'channel_id'])
+        .select([
+          'id',
+          'tenant_id',
+          'email',
+          'status',
+          'email_verified_at',
+          'channel_id',
+          'mfa_enabled',
+        ])
         .where('email', '=', email)
         .orderBy('created_at')
         .executeTakeFirst(),

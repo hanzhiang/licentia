@@ -58,6 +58,8 @@ const EnvSchema = z.object({
    * 生产环境不配则端点直接 404, 不对外泄露请求量.
    */
   METRICS_TOKEN: z.string().default(''),
+  /** TOTP 密钥的加密密钥(与其它字段分开, 便于单独轮换) */
+  MFA_SECRET_ENC_KEY: z.string().min(8).default('dev-mfa-secret-enc-key-change-me'),
 
   // Vault(签名适配器 + 生产密钥托管, 设计文档 §10.1)
   VAULT_ADDR: z.string().default('http://localhost:8200'),

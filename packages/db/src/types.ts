@@ -213,9 +213,20 @@ export interface UsersRow {
   email_verified_at: Date | null;
   /** 渠道账号绑定的渠道; 非渠道账号为 null */
   channel_id: string | null;
+  /** TOTP 密钥(AEAD 加密); 未开启两步验证时为空 */
+  mfa_secret_enc: Buffer | null;
+  mfa_enabled: boolean;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
+}
+
+export interface MfaRecoveryCodesRow {
+  id: string;
+  user_id: string;
+  code_hash: Buffer;
+  used_at: Date | null;
+  created_at: Date;
 }
 
 export interface RolesRow {
@@ -403,6 +414,7 @@ export interface LpDb {
   device_requests: DeviceRequestsRow;
   license_deliveries: LicenseDeliveriesRow;
   notification_templates: NotificationTemplatesRow;
+  mfa_recovery_codes: MfaRecoveryCodesRow;
   tenants: TenantsRow;
   users: UsersRow;
   roles: RolesRow;

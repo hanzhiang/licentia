@@ -116,6 +116,8 @@ export async function seedDemoFixtures(url: string, password = 'Passw0rd!demo'):
             status: 'active',
             last_login_at: null,
             email_verified_at: new Date(),
+            mfa_secret_enc: null,
+            mfa_enabled: false,
             created_at: new Date(),
             updated_at: new Date(),
             deleted_at: null,

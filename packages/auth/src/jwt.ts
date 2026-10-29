@@ -9,7 +9,7 @@ import crypto from 'node:crypto';
 export interface JwtClaims {
   sub: string; // user id 或 portal 手机号哈希
   tid: string | null; // tenant id, 平台账号为 null
-  typ: 'access' | 'portal';
+  typ: 'access' | 'portal' | 'mfa';
   iat: number;
   exp: number;
 }

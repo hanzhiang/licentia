@@ -3,7 +3,18 @@ import crypto from 'node:crypto';
 import { Kysely } from 'kysely';
 import { AppError } from '@lp/domain';
 import { uuidv7, withSystemTx, type LpDb } from '@lp/db';
-import { hashPassword, signJwt, verifyPassword } from '@lp/auth';
+import {
+  generateRecoveryCodes,
+  generateSecret,
+  hashPassword,
+  hashRecoveryCode,
+  otpauthUrl,
+  signJwt,
+  verifyJwt,
+  verifyPassword,
+  verifyTotp,
+} from '@lp/auth';
+import { decryptAead, encryptAead } from '@lp/keygen';
 import { writeAudit } from '@lp/audit';
 import {  getConfig, log } from '@lp/config';
 import { buildChannels, loadTenantLocale, renderTemplate, type TemplateLocale } from '@lp/notify';
@@ -27,8 +38,24 @@ export interface LoginResult {
 }
 
 export interface ProfileResult {
-  user: LoginResult['user'];
+  /** 登录响应里没有 mfa_enabled(开着的账号根本走不到发会话那步), 个人资料里要带上 */
+  user: LoginResult['user'] & { mfa_enabled: boolean };
 }
+
+/** 开了两步验证的账号: 密码对了但还差一步, 先用短期票据换验证码 */
+export type LoginOutcome = LoginResult | { mfa_required: true; challenge_token: string };
+
+export interface MfaSetupResult {
+  secret: string;
+  otpauth_url: string;
+}
+
+export interface MfaActivateResult {
+  recovery_codes: string[];
+}
+
+/** 两步验证挑战票据有效期: 够用户切到身份验证器, 又不至于久到能被慢慢试 */
+const MFA_CHALLENGE_TTL_S = 300;
 
 const MAX_FAILS = 5;
 
@@ -168,7 +195,7 @@ export class AuthService {
     }
   }
 
-  async login(email: string, password: string, ip: string | null): Promise<LoginResult> {
+  async login(email: string, password: string, ip: string | null): Promise<LoginOutcome> {
     const cfg = getConfig();
     const lockedFor = await this.lockedMinutes(email);
     if (lockedFor > 0) {
@@ -178,7 +205,15 @@ export class AuthService {
     const user = await withSystemTx(this.db, (tx) =>
       tx
         .selectFrom('users')
-        .select(['id', 'tenant_id', 'email', 'status', 'password_hash', 'email_verified_at'])
+        .select([
+          'id',
+          'tenant_id',
+          'email',
+          'status',
+          'password_hash',
+          'email_verified_at',
+          'mfa_enabled',
+        ])
         .where('email', '=', email)
         .orderBy('created_at')
         .executeTakeFirst(),
@@ -196,57 +231,225 @@ export class AuthService {
     if (!user.email_verified_at) {
       throw new AppError('EMAIL_NOT_VERIFIED', '邮箱尚未验证, 请先完成验证或重发验证码');
     }
-    await this.clearFailures(email);
     await this.assertTenantActive(user.tenant_id);
 
+    // 开了两步验证: 密码对了也只给一张短期票据, 换到验证码后才发会话
+    if (user.mfa_enabled) {
+      const challengeToken = signJwt(
+        { sub: user.id, tid: user.tenant_id, typ: 'mfa' },
+        MFA_CHALLENGE_TTL_S,
+        this.jwtCfg(),
+      );
+      return { mfa_required: true, challenge_token: challengeToken };
+    }
+
+    await this.clearFailures(email);
     const roles = await this.rbac.rolesOf(user.id);
     const permissions = await this.rbac.permsOf(user.id);
-    const actorType = primaryActorType(roles);
-    const accessToken = signJwt(
-      { sub: user.id, tid: user.tenant_id, typ: 'access' },
-      cfg.AUTH_JWT_TTL_S,
-      this.jwtCfg(),
+    return this.issueSession(user, roles, permissions, primaryActorType(roles), ip, 'auth.login');
+  }
+
+  /**
+   * 第一步: 生成 TOTP 密钥但**不**启用。
+   * 用户把它录入身份验证器并输对一次验证码后才真正生效(mfaActivate)。
+   */
+  async mfaSetup(userId: string): Promise<MfaSetupResult> {
+    const cfg = getConfig();
+    const user = await this.mfaUser(userId);
+    if (user.mfa_enabled) {
+      throw new AppError('REQ_INVALID', '两步验证已开启, 如需重绑定请先关闭');
+    }
+    const secret = generateSecret();
+    await withSystemTx(this.db, (tx) =>
+      tx
+        .updateTable('users')
+        .set({
+          mfa_secret_enc: encryptAead(cfg.MFA_SECRET_ENC_KEY, secret),
+          updated_at: new Date(),
+        })
+        .where('id', '=', userId)
+        .execute(),
     );
-    const refreshToken = crypto.randomBytes(48).toString('base64url');
+    return { secret, otpauth_url: otpauthUrl(user.email, 'Licentia', secret) };
+  }
+
+  /** 第二步: 输对一次验证码才启用, 并一次性下发 10 个恢复码(只存哈希) */
+  async mfaActivate(userId: string, code: string, ip: string | null): Promise<MfaActivateResult> {
+    const cfg = getConfig();
+    const user = await this.mfaUser(userId);
+    if (!user.mfa_secret_enc) throw new AppError('REQ_INVALID', '请先生成密钥');
+    const secret = decryptAead(cfg.MFA_SECRET_ENC_KEY, user.mfa_secret_enc);
+    if (!verifyTotp(secret, code)) {
+      throw new AppError('REQ_INVALID', '验证码不正确, 请确认设备时间准确');
+    }
+
+    const codes = generateRecoveryCodes();
     await withSystemTx(this.db, async (tx) => {
       await tx
-        .insertInto('refresh_tokens')
-        .values({
-          id: uuidv7(),
-          user_id: user.id,
-          token_hash: crypto.createHash('sha256').update(refreshToken, 'utf8').digest(),
-          expires_at: new Date(Date.now() + cfg.AUTH_REFRESH_TTL_D * 86_400_000),
-          revoked_at: null,
-          created_at: new Date(),
-          ip,
-          ua: null,
-        })
+        .updateTable('users')
+        .set({ mfa_enabled: true, updated_at: new Date() })
+        .where('id', '=', userId)
+        .execute();
+      await tx.deleteFrom('mfa_recovery_codes').where('user_id', '=', userId).execute();
+      await tx
+        .insertInto('mfa_recovery_codes')
+        .values(
+          codes.map((c) => ({
+            id: uuidv7(),
+            user_id: userId,
+            code_hash: hashRecoveryCode(c),
+            used_at: null,
+            created_at: new Date(),
+          })),
+        )
         .execute();
       await writeAudit(tx, {
         tenantId: user.tenant_id,
-        actorType: actorType as 'super_admin',
-        actorId: user.id,
-        action: 'auth.login',
+        actorType: 'developer_owner',
+        actorId: userId,
+        action: 'auth.mfa_enable',
         resourceType: 'user',
-        resourceId: user.id,
-        detail: { email: user.email, roles },
+        resourceId: userId,
+        detail: { recovery_codes: codes.length },
         ip,
       });
     });
+    return { recovery_codes: codes };
+  }
 
-    return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_in: cfg.AUTH_JWT_TTL_S,
-      user: {
-        id: user.id,
-        email: user.email,
-        tenant_id: user.tenant_id,
-        roles,
-        actor_type: actorType,
-        permissions,
-      },
-    };
+  /** 关闭两步验证: 需要当前验证码或一枚未用过的恢复码 */
+  async mfaDisable(userId: string, code: string, ip: string | null): Promise<void> {
+    const cfg = getConfig();
+    const user = await this.mfaUser(userId);
+    if (!user.mfa_enabled || !user.mfa_secret_enc) {
+      throw new AppError('REQ_INVALID', '两步验证未开启');
+    }
+    const secret = decryptAead(cfg.MFA_SECRET_ENC_KEY, user.mfa_secret_enc);
+    const used = await this.consumeSecondFactor(user.id, secret, code);
+    if (!used) throw new AppError('REQ_INVALID', '验证码不正确');
+
+    await withSystemTx(this.db, async (tx) => {
+      await tx
+        .updateTable('users')
+        .set({ mfa_enabled: false, mfa_secret_enc: null, updated_at: new Date() })
+        .where('id', '=', userId)
+        .execute();
+      await tx.deleteFrom('mfa_recovery_codes').where('user_id', '=', userId).execute();
+      await writeAudit(tx, {
+        tenantId: user.tenant_id,
+        actorType: 'developer_owner',
+        actorId: userId,
+        action: 'auth.mfa_disable',
+        resourceType: 'user',
+        resourceId: userId,
+        detail: { via: used },
+        ip,
+      });
+    });
+  }
+
+  /** 登录第二步: 挑战票据 + 验证码(或恢复码) 换正式会话 */
+  async mfaVerify(challengeToken: string, code: string, ip: string | null): Promise<LoginResult> {
+    const cfg = getConfig();
+    let userId: string;
+    try {
+      // 只认 typ=mfa 的票据: access token 换不了这一步
+      userId = verifyJwt(challengeToken, this.jwtCfg(), ['mfa']).sub;
+    } catch {
+      throw new AppError('AUTH_REQUIRED', '验证已过期, 请重新登录');
+    }
+
+    const user = await this.mfaUser(userId);
+    if (!user || user.status !== 'active' || !user.mfa_enabled || !user.mfa_secret_enc) {
+      throw new AppError('AUTH_REQUIRED', '账号状态已变化, 请重新登录');
+    }
+    const lockedFor = await this.lockedMinutes(user.email);
+    if (lockedFor > 0) {
+      throw new AppError('RATE_LIMITED', `验证码错误次数过多, 请 ${lockedFor} 分钟后再试`);
+    }
+
+    const secret = decryptAead(cfg.MFA_SECRET_ENC_KEY, user.mfa_secret_enc);
+    const used = await this.consumeSecondFactor(user.id, secret, code);
+    if (!used) {
+      // 与密码错误共用同一套失败计数, 六位码不可能被慢慢试出来
+      await this.recordFailure(user.email);
+      await withSystemTx(this.db, (tx) =>
+        writeAudit(tx, {
+          tenantId: user.tenant_id,
+          actorType: 'developer_owner',
+          actorId: user.id,
+          action: 'auth.mfa_failed',
+          resourceType: 'user',
+          resourceId: user.id,
+          detail: { email: user.email },
+          ip,
+        }),
+      );
+      throw new AppError('AUTH_REQUIRED', '验证码不正确');
+    }
+
+    await this.clearFailures(user.email);
+    await this.assertTenantActive(user.tenant_id);
+    const roles = await this.rbac.rolesOf(user.id);
+    const permissions = await this.rbac.permsOf(user.id);
+    return this.issueSession(
+      user,
+      roles,
+      permissions,
+      primaryActorType(roles),
+      ip,
+      used === 'recovery' ? 'auth.login.mfa_recovery' : 'auth.login.mfa',
+    );
+  }
+
+  private async mfaUser(userId: string) {
+    const user = await withSystemTx(this.db, (tx) =>
+      tx
+        .selectFrom('users')
+        .select([
+          'id',
+          'tenant_id',
+          'email',
+          'status',
+          'mfa_enabled',
+          'mfa_secret_enc',
+        ])
+        .where('id', '=', userId)
+        .executeTakeFirst(),
+    );
+    if (!user) throw new AppError('AUTH_REQUIRED', '用户不存在');
+    return user;
+  }
+
+  /** 先试 TOTP, 再试恢复码; 恢复码用过即作废 */
+  private async consumeSecondFactor(
+    userId: string,
+    secret: string,
+    code: string,
+  ): Promise<'totp' | 'recovery' | null> {
+    if (verifyTotp(secret, code)) return 'totp';
+
+    const hash = hashRecoveryCode(code);
+    const row = await withSystemTx(this.db, (tx) =>
+      tx
+        .selectFrom('mfa_recovery_codes')
+        .select(['id'])
+        .where('user_id', '=', userId)
+        .where('code_hash', '=', hash)
+        .where('used_at', 'is', null)
+        .executeTakeFirst(),
+    );
+    if (!row) return null;
+    const res = await withSystemTx(this.db, (tx) =>
+      tx
+        .updateTable('mfa_recovery_codes')
+        .set({ used_at: new Date() })
+        .where('id', '=', row.id)
+        .where('used_at', 'is', null)
+        .executeTakeFirst(),
+    );
+    // 并发下可能被别人先用掉
+    return Number(res.numUpdatedRows ?? 0) > 0 ? 'recovery' : null;
   }
 
   /**
@@ -304,6 +507,8 @@ export class AuthService {
           status: 'active',
           last_login_at: null,
           email_verified_at: null,
+          mfa_secret_enc: null,
+          mfa_enabled: false,
           created_at: new Date(),
           updated_at: new Date(),
           deleted_at: null,
@@ -614,6 +819,7 @@ export class AuthService {
         roles,
         actor_type: primaryActorType(roles),
         permissions: await this.rbac.permsOf(user.id),
+        mfa_enabled: user.mfa_enabled,
       },
     };
   }

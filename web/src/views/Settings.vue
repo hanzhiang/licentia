@@ -35,6 +35,51 @@
     <el-divider />
 
     <section class="block">
+      <h3>{{ t('settings.mfaTitle') }}</h3>
+      <p class="hint">{{ t('settings.mfaHint') }}</p>
+
+      <el-tag :type="mfaEnabled ? 'success' : 'info'" size="small">
+        {{ mfaEnabled ? t('settings.mfaOn') : t('settings.mfaOff') }}
+      </el-tag>
+
+      <div v-if="!mfaEnabled && !mfaSecret" class="row" style="margin-top: 12px">
+        <el-button type="primary" :loading="mfaBusy" @click="startMfa">
+          {{ t('settings.mfaStart') }}
+        </el-button>
+      </div>
+
+      <div v-if="!mfaEnabled && mfaSecret" class="mfa-box">
+        <p class="hint">{{ t('settings.mfaSecretHint') }}</p>
+        <code class="secret">{{ mfaSecret }}</code>
+        <p class="hint">
+          <a :href="mfaOtpauth">{{ t('settings.mfaOpenUri') }}</a>
+        </p>
+        <div class="row">
+          <el-input v-model="mfaCode" :placeholder="t('settings.mfaCodePlaceholder')" maxlength="20" style="width: 220px" />
+          <el-button type="primary" :loading="mfaBusy" @click="activateMfa">
+            {{ t('settings.mfaConfirm') }}
+          </el-button>
+        </div>
+      </div>
+
+      <div v-if="mfaEnabled" class="mfa-box">
+        <p class="hint">{{ t('settings.mfaDisableHint') }}</p>
+        <div class="row">
+          <el-input v-model="mfaCode" :placeholder="t('settings.mfaCodePlaceholder')" maxlength="20" style="width: 220px" />
+          <el-button :loading="mfaBusy" @click="disableMfa">{{ t('settings.mfaDisable') }}</el-button>
+        </div>
+      </div>
+
+      <el-card v-if="recoveryCodes.length > 0" class="recovery" shadow="never">
+        <div class="recovery-title">{{ t('settings.mfaRecoveryTitle') }}</div>
+        <p class="hint">{{ t('settings.mfaRecoveryHint') }}</p>
+        <code v-for="c in recoveryCodes" :key="c" class="recovery-code">{{ c }}</code>
+      </el-card>
+    </section>
+
+    <el-divider />
+
+    <section class="block">
       <h3>{{ t('settings.sectionTemplates') }}</h3>
       <p class="hint">{{ t('settings.templatesHint') }}</p>
 
@@ -134,6 +179,77 @@ const tmplLocale = ref<'zh-CN' | 'en'>('zh-CN');
 const rendered = ref<Rendered | null>(null);
 const form = reactive({ subject: '', body: '', sms: '' });
 
+const mfaEnabled = ref(false);
+const mfaSecret = ref('');
+const mfaOtpauth = ref('');
+const mfaCode = ref('');
+const mfaBusy = ref(false);
+const recoveryCodes = ref<string[]>([]);
+
+async function loadMfa(): Promise<void> {
+  try {
+    const { data } = await api.get('/admin/v1/auth/me');
+    mfaEnabled.value = Boolean(data.data.user.mfa_enabled);
+  } catch {
+    /* 401 由拦截器统一处理 */
+  }
+}
+
+async function startMfa(): Promise<void> {
+  mfaBusy.value = true;
+  try {
+    const { data } = await api.post('/admin/v1/auth/mfa/setup', {});
+    mfaSecret.value = data.data.secret;
+    mfaOtpauth.value = data.data.otpauth_url;
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  } finally {
+    mfaBusy.value = false;
+  }
+}
+
+async function activateMfa(): Promise<void> {
+  if (!mfaCode.value.trim()) return ElMessage.error(t('settings.mfaCodePlaceholder'));
+  mfaBusy.value = true;
+  try {
+    const { data } = await api.post('/admin/v1/auth/mfa/activate', {
+      code: mfaCode.value.trim(),
+    });
+    recoveryCodes.value = data.data.recovery_codes;
+    mfaEnabled.value = true;
+    mfaSecret.value = '';
+    mfaCode.value = '';
+    ElMessage.success(t('settings.saved'));
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  } finally {
+    mfaBusy.value = false;
+  }
+}
+
+async function disableMfa(): Promise<void> {
+  if (!mfaCode.value.trim()) return ElMessage.error(t('settings.mfaCodePlaceholder'));
+  try {
+    await ElMessageBox.confirm(t('settings.mfaDisableConfirm'), t('settings.mfaDisable'), {
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
+  mfaBusy.value = true;
+  try {
+    await api.post('/admin/v1/auth/mfa/disable', { code: mfaCode.value.trim() });
+    mfaEnabled.value = false;
+    mfaCode.value = '';
+    recoveryCodes.value = [];
+    ElMessage.success(t('settings.saved'));
+  } catch (e) {
+    ElMessage.error(errMsg(e));
+  } finally {
+    mfaBusy.value = false;
+  }
+}
+
 const codes = computed(() => [...new Set(all.value.map((x) => x.code))]);
 const current = computed(() =>
   all.value.find((x) => x.code === code.value && x.locale === tmplLocale.value),
@@ -164,6 +280,7 @@ async function load(): Promise<void> {
     all.value = templates.data.data;
     if (!code.value) code.value = codes.value[0] ?? '';
     selectTemplate();
+    await loadMfa();
   } catch (e) {
     ElMessage.error(errMsg(e));
   } finally {
@@ -259,4 +376,25 @@ onMounted(load);
 .preview-subject { font-weight: 600; margin-bottom: 8px; }
 .preview-body { white-space: pre-wrap; font-family: inherit; margin: 0; font-size: 13px; line-height: 1.6; }
 .preview-sms { margin-top: 10px; font-size: 12px; color: #6b7280; }
+.mfa-box { margin-top: 12px; }
+.secret {
+  display: inline-block;
+  padding: 6px 10px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 1px;
+}
+.recovery { margin-top: 14px; background: #fafafa; }
+.recovery-title { font-weight: 600; margin-bottom: 6px; }
+.recovery-code {
+  display: inline-block;
+  margin: 4px 8px 0 0;
+  padding: 2px 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
 </style>

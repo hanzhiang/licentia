@@ -127,6 +127,8 @@ export class MemberService {
           // 由租户所有者创建, 视为已验证(邮箱归属由邀请人担保)
           email_verified_at: now,
           channel_id: channelId,
+          mfa_secret_enc: null,
+          mfa_enabled: false,
           created_at: now,
           updated_at: now,
           deleted_at: null,

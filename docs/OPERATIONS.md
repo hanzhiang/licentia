@@ -427,6 +427,8 @@ pnpm backup:restore -- --dir ./data/backups/prod-20261028 `
 - 数据库使用最小权限应用账号，RLS 必须保持启用。
 - 全站 HTTPS；反向代理限制请求体大小、登录频率和 API Key QPS。
 - 配置真实 SMTP/SMS 网关；生产环境不要启用控制台通知兜底。
+- 建议给每位管理员开启两步验证（后台「设置 → 两步验证」）：登录时除密码外还要一次性验证码，
+  并一次性下发 10 个恢复码。TOTP 密钥用 `MFA_SECRET_ENC_KEY` 加密存储，恢复码只存哈希。
 - 设置 `METRICS_TOKEN`：`/metrics` 会要求 `Authorization: Bearer <token>`；
   生产环境不配则该端点直接 404（不对外泄露请求量）。worker 的 `/healthz` 与 `/metrics`
   在同一端口上遵循同样规则。

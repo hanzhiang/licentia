@@ -24,6 +24,16 @@ const RegisterSchema = z
   })
   .superRefine((v, ctx) => refinePassword(v.password, ctx, { email: v.email }));
 
+const MfaCodeSchema = z.object({
+  // 恢复码形如 ABCDE-12345, 长度与 TOTP 的 6 位码都放行
+  code: z.string().trim().min(6).max(20),
+});
+
+const MfaVerifySchema = z.object({
+  challenge_token: z.string().min(20).max(4000),
+  code: z.string().trim().min(6).max(20),
+});
+
 const VerifyEmailSchema = z.object({
   email: z.string().email().max(200),
   code: z.string().regex(/^\d{6}$/, '验证码为 6 位数字'),
@@ -117,6 +127,53 @@ export class AuthController {
   async me(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
     const data = await this.service.profile(currentUser(req).id);
     void reply.code(200).send({ data });
+  }
+
+  /** 生成 TOTP 密钥(此时还未生效) */
+  @Post('mfa/setup')
+  @UseGuards(JwtAuthGuard)
+  async mfaSetup(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
+    const data = await this.service.mfaSetup(currentUser(req).id);
+    void reply.code(200).send({ data });
+  }
+
+  /** 输对一次验证码才真正启用, 响应里带一次性恢复码 */
+  @Post('mfa/activate')
+  @UseGuards(JwtAuthGuard)
+  async mfaActivate(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
+    const parsed = MfaCodeSchema.safeParse(req.body);
+    if (!parsed.success) throw new AppError('REQ_INVALID', '请输入 6 位验证码');
+    const data = await this.service.mfaActivate(
+      currentUser(req).id,
+      parsed.data.code,
+      clientIp(req),
+    );
+    void reply.code(200).send({ data });
+  }
+
+  @Post('mfa/disable')
+  @UseGuards(JwtAuthGuard)
+  async mfaDisable(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
+    const parsed = MfaCodeSchema.safeParse(req.body);
+    if (!parsed.success) throw new AppError('REQ_INVALID', '请输入验证码');
+    await this.service.mfaDisable(currentUser(req).id, parsed.data.code, clientIp(req));
+    void reply.code(204).send();
+  }
+
+  /**
+   * 登录第二步: 用登录阶段拿到的挑战票据 + 验证码(或恢复码)换会话。
+   * 票据只认 typ=mfa, access token 换不了。
+   */
+  @Post('mfa/verify')
+  async mfaVerify(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
+    const parsed = MfaVerifySchema.safeParse(req.body);
+    if (!parsed.success) throw new AppError('REQ_INVALID', '请求参数不合法');
+    const result = await this.service.mfaVerify(
+      parsed.data.challenge_token,
+      parsed.data.code,
+      clientIp(req),
+    );
+    void reply.code(200).send({ data: result });
   }
 }
 
