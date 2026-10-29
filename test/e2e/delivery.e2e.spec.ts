@@ -93,10 +93,12 @@ d.sequential('license delivery', () => {
         .execute();
       if (ids.length > 0) {
         const licIds = ids.map((r) => r.id);
+        await tx.deleteFrom('license_deliveries').where('license_id', 'in', licIds).execute();
         await tx.deleteFrom('client_tokens').where('license_id', 'in', licIds).execute();
         await tx.deleteFrom('license_activations').where('license_id', 'in', licIds).execute();
         await tx.deleteFrom('devices').where('product_id', '=', productId).execute();
       }
+      await tx.deleteFrom('license_deliveries').where('batch_id', '=', batchId).execute();
       await tx.deleteFrom('licenses').where('product_id', '=', productId).execute();
       await tx.deleteFrom('license_batches').where('product_id', '=', productId).execute();
       await tx.deleteFrom('policies').where('product_id', '=', productId).execute();
@@ -127,6 +129,23 @@ d.sequential('license delivery', () => {
     await expect(delivery.deliverLicense(TENANT, lic.id, null, actor)).rejects.toMatchObject({
       code: 'REQ_INVALID',
     });
+  }, 60000);
+
+  it('records every delivery so resends and outcomes are auditable', async () => {
+    const lic = (await licenses.list(TENANT, { limit: 1 }))[0]!;
+    const before = await delivery.listForLicense(TENANT, lic.id);
+    expect(before.total).toBe(0);
+
+    await delivery.deliverLicense(TENANT, lic.id, 'repeat@example.com', actor);
+    await delivery.deliverLicense(TENANT, lic.id, 'repeat@example.com', actor);
+
+    const after = await delivery.listForLicense(TENANT, lic.id);
+    expect(after.total).toBe(before.total + 2);
+    expect(after.sent).toBe(before.sent + 2);
+    expect(after.last_sent_at).not.toBeNull();
+    // 列表里只出现脱敏地址, 不返回明文
+    expect(after.records[0]!.to_masked).toContain('***');
+    expect(after.records[0]!.to_masked).not.toContain('repeat@');
   }, 60000);
 
   it('exposes the license timeline including activation', async () => {

@@ -97,6 +97,42 @@
         </el-table-column>
       </el-table>
 
+      <div class="section-title">交付记录</div>
+      <div v-if="deliveries" class="delivery-summary">
+        <el-tag size="small">共 {{ deliveries.total }} 次</el-tag>
+        <el-tag size="small" type="success">成功 {{ deliveries.sent }}</el-tag>
+        <el-tag v-if="deliveries.failed" size="small" type="danger">失败 {{ deliveries.failed }}</el-tag>
+        <span v-if="deliveries.last_sent_at" class="hint">
+          最近成功 {{ fmt(deliveries.last_sent_at) }}
+        </span>
+      </div>
+      <el-table
+        v-if="deliveries && deliveries.records.length"
+        :data="deliveries.records"
+        size="small"
+      >
+        <el-table-column prop="to_masked" label="收件人" min-width="170" />
+        <el-table-column prop="code_count" label="码数" width="70" />
+        <el-table-column label="结果" width="90">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.status === 'sent' ? 'success' : 'danger'">
+              {{ row.status === 'sent' ? '已送达' : '失败' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="时间" width="170">
+          <template #default="{ row }">{{ fmt(row.created_at) }}</template>
+        </el-table-column>
+        <el-table-column label="错误" min-width="160">
+          <template #default="{ row }">{{ row.error ?? '-' }}</template>
+        </el-table-column>
+      </el-table>
+      <el-empty
+        v-else-if="deliveries"
+        description="还没有交付记录"
+        :image-size="60"
+      />
+
       <div class="section-title">生命周期</div>
       <el-timeline v-if="timeline.length">
         <el-timeline-item v-for="(e, i) in timeline" :key="i" :timestamp="fmt(e.at)">
@@ -143,6 +179,20 @@ interface Activation {
 const rows = ref<LicenseRow[]>([]);
 const activations = ref<Activation[]>([]);
 const timeline = ref<Array<{ at: string; type: string; detail: Record<string, unknown> }>>([]);
+const deliveries = ref<{
+  total: number;
+  sent: number;
+  failed: number;
+  last_sent_at: string | null;
+  records: Array<{
+    id: string;
+    to_masked: string;
+    code_count: number;
+    status: string;
+    error: string | null;
+    created_at: string;
+  }>;
+} | null>(null);
 
 const TIMELINE_LABELS: Record<string, string> = {
   issued: '授权码生成',
@@ -295,6 +345,8 @@ async function deliver(): Promise<void> {
     const d = data.data;
     if (d.sent) ElMessage.success(`已发送到 ${d.to}`);
     else ElMessage.error(`发送失败: ${d.error ?? '未知原因'}`);
+    const rec = await api.get(`/admin/v1/licenses/${detail.value.id}/deliveries`);
+    deliveries.value = rec.data.data;
   } catch (e) {
     ElMessage.error(errMsg(e));
   }
@@ -319,6 +371,16 @@ async function deliver(): Promise<void> {
   margin: 16px 0 4px;
 }
 .drawer-actions .hint {
+  color: #909399;
+  font-size: 12px;
+}
+.delivery-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.delivery-summary .hint {
   color: #909399;
   font-size: 12px;
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '@lp/domain';
@@ -54,6 +54,18 @@ export class DeliveryController {
       parsed.data.limit ?? MAX_CODES_PER_MAIL,
       actorFrom(req),
     );
+    void reply.code(200).send({ data });
+  }
+
+  @Get('licenses/:id/deliveries')
+  @RequirePerms('license:read')
+  async listDeliveries(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    const data = await this.service.listForLicense(tenantId, id);
     void reply.code(200).send({ data });
   }
 }

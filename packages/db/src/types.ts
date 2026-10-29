@@ -350,7 +350,23 @@ export interface NotificationsOutboxRow {
   updated_at: Date;
 }
 
+export interface LicenseDeliveriesRow {
+  id: string;
+  tenant_id: string;
+  license_id: string | null;
+  batch_id: string | null;
+  channel: string;
+  to_addr_enc: Buffer;
+  code_count: number;
+  status: 'sent' | 'failed';
+  provider_message_id: string | null;
+  error: string | null;
+  delivered_by: string | null;
+  created_at: Date;
+}
+
 export interface LpDb {
+  license_deliveries: LicenseDeliveriesRow;
   tenants: TenantsRow;
   users: UsersRow;
   roles: RolesRow;

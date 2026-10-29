@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Kysely } from 'kysely';
 import { AppError, errLicNotFound, errReqInvalid } from '@lp/domain';
-import { decryptAead, maskCode } from '@lp/keygen';
-import { LpDb, withTenantTx } from '@lp/db';
+import { decryptAead, encryptAead, maskCode } from '@lp/keygen';
+import { LpDb, uuidv7, withTenantTx } from '@lp/db';
 import { writeAudit } from '@lp/audit';
 import { buildChannels } from '@lp/notify';
 import { getConfig } from '@lp/config';
@@ -19,6 +19,13 @@ export interface DeliveryOutcome {
 
 /** 单封邮件里最多塞多少个码: 再多就该用导出文件, 而不是灌满收件箱 */
 export const MAX_CODES_PER_MAIL = 200;
+
+/** 邮箱脱敏: 只留首字符与域名, 用于审计与列表展示 */
+function maskEmail(email: string): string {
+  const at = email.indexOf('@');
+  if (at <= 0) return '***';
+  return `${email[0]}***${email.slice(at)}`;
+}
 
 /**
  * 授权码交付(发码 → 交到客户手里).
@@ -73,8 +80,18 @@ export class DeliveryService {
       ].join('\n'),
     );
 
-    await withTenantTx(this.db, tenantId, (tx) =>
-      writeAudit(tx, {
+    await withTenantTx(this.db, tenantId, async (tx) => {
+      await this.recordDelivery(tx, tenantId, {
+        licenseId,
+        batchId: null,
+        channel: outcome.channel,
+        to: outcome.to,
+        count: 1,
+        status: outcome.sent ? 'sent' : 'failed',
+        error: outcome.error,
+        actorId: actor.userId,
+      });
+      await writeAudit(tx, {
         tenantId,
         actorType: actor.actorType as 'developer_operator',
         actorId: actor.userId,
@@ -82,15 +99,16 @@ export class DeliveryService {
         resourceType: 'license',
         resourceId: licenseId,
         detail: {
-          to: outcome.to,
+          // 审计里不写明文收件地址
+          to_masked: outcome.to ? maskEmail(outcome.to) : null,
           sent: outcome.sent,
           channel: outcome.channel,
           code_masked: maskCode(lic.code.replace(/-/g, '')),
         },
         ip: actor.ip ?? null,
         requestId: actor.requestId ?? null,
-      }),
-    );
+      });
+    });
     return outcome;
   }
 
@@ -149,19 +167,33 @@ export class DeliveryService {
     );
     outcome.count = rows.length;
 
-    await withTenantTx(this.db, tenantId, (tx) =>
-      writeAudit(tx, {
+    await withTenantTx(this.db, tenantId, async (tx) => {
+      await this.recordDelivery(tx, tenantId, {
+        licenseId: null,
+        batchId,
+        channel: outcome.channel,
+        to: outcome.to,
+        count: rows.length,
+        status: outcome.sent ? 'sent' : 'failed',
+        error: outcome.error,
+        actorId: actor.userId,
+      });
+      await writeAudit(tx, {
         tenantId,
         actorType: actor.actorType as 'developer_operator',
         actorId: actor.userId,
         action: 'batch.deliver',
         resourceType: 'license_batch',
         resourceId: batchId,
-        detail: { to: outcome.to, sent: outcome.sent, count: rows.length },
+        detail: {
+          to_masked: outcome.to ? maskEmail(outcome.to) : null,
+          sent: outcome.sent,
+          count: rows.length,
+        },
         ip: actor.ip ?? null,
         requestId: actor.requestId ?? null,
-      }),
-    );
+      });
+    });
     return outcome;
   }
 
@@ -186,7 +218,11 @@ export class DeliveryService {
     }
   }
 
-  private async send(to: string | null, subject: string, text: string): Promise<DeliveryOutcome> {
+  private async send(
+    to: string | null,
+    subject: string,
+    text: string,
+  ): Promise<DeliveryOutcome & { to: string }> {
     if (!to) {
       throw new AppError(
         'REQ_INVALID',
@@ -204,6 +240,96 @@ export class DeliveryService {
       channel: channel.name,
       count: 1,
       error: res.error,
+    };
+  }
+
+  /** 写一条交付记录(与审计同事务) */
+  private async recordDelivery(
+    tx: Parameters<Parameters<typeof withTenantTx>[2]>[0],
+    tenantId: string,
+    d: {
+      licenseId: string | null;
+      batchId: string | null;
+      channel: string;
+      to: string;
+      count: number;
+      status: 'sent' | 'failed';
+      error: string | null;
+      actorId: string;
+    },
+  ): Promise<void> {
+    await tx
+      .insertInto('license_deliveries')
+      .values({
+        id: uuidv7(),
+        tenant_id: tenantId,
+        license_id: d.licenseId,
+        batch_id: d.batchId,
+        channel: d.channel,
+        to_addr_enc: encryptAead(getConfig().NOTIFY_ADDR_ENC_KEY, d.to),
+        code_count: d.count,
+        status: d.status,
+        provider_message_id: null,
+        error: d.error,
+        delivered_by: d.actorId,
+        created_at: new Date(),
+      })
+      .execute();
+  }
+
+  /** 某张授权的交付历史: 谁发的、发给谁、成没成功、重发过几次 */
+  async listForLicense(
+    tenantId: string,
+    licenseId: string,
+  ): Promise<{
+    total: number;
+    sent: number;
+    failed: number;
+    last_sent_at: string | null;
+    records: Array<{
+      id: string;
+      channel: string;
+      to_masked: string;
+      code_count: number;
+      status: string;
+      error: string | null;
+      delivered_by: string | null;
+      created_at: string;
+    }>;
+  }> {
+    const rows = await withTenantTx(this.db, tenantId, (tx) =>
+      tx
+        .selectFrom('license_deliveries')
+        .selectAll()
+        .where('license_id', '=', licenseId)
+        .orderBy('created_at', 'desc')
+        .limit(200)
+        .execute(),
+    );
+    const records = rows.map((r) => {
+      let masked = '***';
+      try {
+        masked = maskEmail(decryptAead(getConfig().NOTIFY_ADDR_ENC_KEY, r.to_addr_enc));
+      } catch {
+        /* 解密失败不阻断列表 */
+      }
+      return {
+        id: r.id,
+        channel: r.channel,
+        to_masked: masked,
+        code_count: r.code_count,
+        status: r.status,
+        error: r.error,
+        delivered_by: r.delivered_by,
+        created_at: r.created_at.toISOString(),
+      };
+    });
+    return {
+      total: records.length,
+      sent: records.filter((r) => r.status === 'sent').length,
+      failed: records.filter((r) => r.status === 'failed').length,
+      last_sent_at: records.find((r) => r.status === 'sent')?.created_at ?? null,
+      records,
     };
   }
 }
