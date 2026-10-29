@@ -22,6 +22,7 @@
           <el-menu-item v-if="auth.can('audit:read')" index="/audit">{{ t('nav.audit') }}</el-menu-item>
           <el-menu-item v-if="auth.can('apikey:write')" index="/apikeys">API Key</el-menu-item>
           <el-menu-item v-if="auth.can('webhook:write')" index="/webhooks">{{ t('nav.webhooks') }}</el-menu-item>
+          <el-menu-item v-if="canSettings" index="/settings">{{ t('nav.settings') }}</el-menu-item>
         </el-menu-item-group>
       </el-menu>
     </el-aside>
@@ -93,6 +94,9 @@ const canCatalog = computed(
   () =>
     auth.can('product:write') || auth.can('policy:write') || auth.can('channel:write'),
 );
+
+// 设置页含「出站邮件语言」与「通知模板」两块, 有任意一项读权限即可进入
+const canSettings = computed(() => auth.can('tenant:read') || auth.can('notify:read'));
 
 async function refreshProfile(): Promise<void> {
   try {

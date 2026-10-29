@@ -31,6 +31,12 @@ const router = createRouter({
         { path: 'audit', component: () => import('./views/AuditEvents.vue'), meta: { perm: 'audit:read' } },
         { path: 'apikeys', component: () => import('./views/ApiKeys.vue'), meta: { perm: 'apikey:write' } },
         { path: 'webhooks', component: () => import('./views/Webhooks.vue'), meta: { perm: 'webhook:write' } },
+        {
+          path: 'settings',
+          component: () => import('./views/Settings.vue'),
+          // 语言设置与通知模板是两件事: 有任意一项读权限就进得来, 写操作由页面按权限禁用
+          meta: { permsAny: ['tenant:read', 'notify:read'] },
+        },
       ],
     },
   ],
