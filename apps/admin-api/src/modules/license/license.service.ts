@@ -393,4 +393,69 @@ export class LicenseService {
         .map((e) => ({ at: e.at.toISOString(), type: e.type, detail: e.detail }));
     });
   }
+
+  /**
+   * 席位/并发占用情况。客服最常被问"为什么提示席位已满", 这里给出可直接回答的数字。
+   *
+   * 席位成员在 Redis 里是 user_id 的 HMAC(不可逆), 所以只返回聚合数量与最近心跳,
+   * 不返回具体是谁 —— 要看人请让客户端在 user_id 之外自行维护业务侧名单。
+   */
+  async seatUsage(
+    tenantId: string,
+    licenseId: string,
+    channelId?: string | null,
+  ): Promise<{
+    seat_limit: number | null;
+    seats_used: number;
+    concurrency_limit: number | null;
+    concurrent_now: number;
+    window_minutes: number;
+    last_seen_at: string | null;
+    available: boolean;
+  }> {
+    const lic = await withTenantTx(this.db, tenantId, (tx) =>
+      tx
+        .selectFrom('licenses')
+        .select(['seat_limit', 'concurrency_limit', 'heartbeat_hours', 'channel_id'])
+        .where('id', '=', licenseId)
+        .executeTakeFirst(),
+    );
+    if (!lic || (channelId && lic.channel_id !== channelId)) throw errLicNotFound();
+
+    const fallback = {
+      seat_limit: lic.seat_limit,
+      seats_used: 0,
+      concurrency_limit: lic.concurrency_limit,
+      concurrent_now: 0,
+      window_minutes: Math.max(lic.heartbeat_hours, 1) * 60,
+      last_seen_at: null,
+      available: false,
+    };
+    if (!this.redis) return fallback;
+
+    const windowMs = Math.max(lic.heartbeat_hours, 1) * 3_600_000;
+    try {
+      const seatKey = `lp:seats:${licenseId}`;
+      const concKey = `lp:conc:${licenseId}`;
+      await this.redis.zremrangebyscore(seatKey, 0, Date.now() - windowMs);
+      await this.redis.zremrangebyscore(concKey, 0, Date.now() - windowMs);
+      const [seats, conc, top] = await Promise.all([
+        this.redis.zcard(seatKey),
+        this.redis.zcard(concKey),
+        this.redis.zrevrange(seatKey, 0, 0, 'WITHSCORES'),
+      ]);
+      const lastMs = top && top.length > 1 ? Number(top[1]) : null;
+      return {
+        seat_limit: lic.seat_limit,
+        seats_used: seats,
+        concurrency_limit: lic.concurrency_limit,
+        concurrent_now: conc,
+        window_minutes: Math.round(windowMs / 60_000),
+        last_seen_at: lastMs ? new Date(lastMs).toISOString() : null,
+        available: true,
+      };
+    } catch {
+      return fallback;
+    }
+  }
 }

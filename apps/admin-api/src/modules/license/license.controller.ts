@@ -99,4 +99,16 @@ export class LicenseController {
     const data = await this.service.timeline(tenantId, id, channelScope(req));
     void reply.code(200).send({ data });
   }
+
+  @Get(':id/seats')
+  @RequirePerms('license:read')
+  async seats(
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    const data = await this.service.seatUsage(tenantId, id, channelScope(req));
+    void reply.code(200).send({ data });
+  }
 }
