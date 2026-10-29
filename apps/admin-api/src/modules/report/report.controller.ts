@@ -2,7 +2,7 @@ import { Inject, Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/com
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { JwtAuthGuard, PermGuard, RequirePerms, requireTenantId } from '../../iam/guards';
 import { withTenantTx, type LpDb } from '@lp/db';
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { DB } from '../../db.module';
 
 @Controller('admin/v1/reports')
@@ -41,5 +41,92 @@ export class ReportsController {
       return q.execute();
     });
     void reply.code(200).send({ data: rows });
+  }
+
+  /**
+   * 总览: 按天的新增/激活曲线、按产品的分布、以及即将到期的存量。
+   * 之前只有渠道维度, 财务角色打开报表只能看到一张渠道表。
+   */
+  @Get('summary')
+  @RequirePerms('report:read')
+  async summary(
+    @Req() req: FastifyRequest,
+    @Query('days') days: string | undefined,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const tenantId = requireTenantId(req);
+    const span = Math.min(Math.max(Number(days ?? 30) || 30, 1), 365);
+    const data = await withTenantTx(this.db, tenantId, async (tx) => {
+      const daily = await sql<{ d: string; issued: string; activated: string }>`
+        with series as (
+          select generate_series(
+            current_date - (${span}::int - 1), current_date, interval '1 day'
+          )::date as d
+        )
+        select to_char(series.d, 'YYYY-MM-DD') as d,
+               (select count(*) from licenses l where l.issued_at::date = series.d) as issued,
+               (select count(*) from licenses l where l.activated_at::date = series.d) as activated
+          from series
+         order by series.d
+      `.execute(tx);
+
+      const products = await tx
+        .selectFrom('products')
+        .leftJoin('licenses', 'licenses.product_id', 'products.id')
+        .select([
+          'products.id',
+          'products.code',
+          'products.name',
+          sql<string>`count(licenses.id)`.as('licenses'),
+          sql<string>`count(licenses.id) filter (where licenses.status = 'activated')`.as(
+            'activated',
+          ),
+          sql<string>`count(licenses.id) filter (where licenses.status = 'revoked')`.as('revoked'),
+        ])
+        .where('products.deleted_at', 'is', null)
+        .groupBy(['products.id', 'products.code', 'products.name'])
+        .orderBy(sql`count(licenses.id) desc`)
+        .execute();
+
+      const totals = await tx
+        .selectFrom('licenses')
+        .select([
+          sql<string>`count(*)`.as('licenses'),
+          sql<string>`count(*) filter (where status = 'activated')`.as('activated'),
+          sql<string>`count(*) filter (where status = 'revoked')`.as('revoked'),
+          sql<string>`count(*) filter (where status = 'expired')`.as('expired'),
+          sql<string>`count(*) filter (
+            where status = 'activated'
+              and expires_at is not null
+              and expires_at <= now() + interval '30 days'
+          )`.as('expiring_30d'),
+        ])
+        .executeTakeFirstOrThrow();
+
+      return {
+        range_days: span,
+        totals: {
+          licenses: Number(totals.licenses),
+          activated: Number(totals.activated),
+          revoked: Number(totals.revoked),
+          expired: Number(totals.expired),
+          expiring_30d: Number(totals.expiring_30d),
+        },
+        daily: daily.rows.map((r) => ({
+          date: r.d,
+          issued: Number(r.issued),
+          activated: Number(r.activated),
+        })),
+        products: products.map((p) => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          licenses: Number(p.licenses),
+          activated: Number(p.activated),
+          revoked: Number(p.revoked),
+        })),
+      };
+    });
+    void reply.code(200).send({ data });
   }
 }
