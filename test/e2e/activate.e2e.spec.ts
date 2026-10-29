@@ -55,6 +55,7 @@ d.sequential('activation e2e (requires TEST_DATABASE_URL)', () => {
       await tx.deleteFrom('idempotency_keys').execute();
       await tx.deleteFrom('events').execute();
       await tx.deleteFrom('renewals').execute();
+      await tx.deleteFrom('license_deliveries').execute();
       await tx.deleteFrom('client_tokens').execute();
       await tx.deleteFrom('license_activations').execute();
       await tx.deleteFrom('devices').execute();

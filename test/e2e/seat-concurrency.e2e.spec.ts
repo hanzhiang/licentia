@@ -70,6 +70,10 @@ d.sequential('seat and concurrency limits', () => {
         await tx.deleteFrom('license_activations').where('license_id', 'in', licIds).execute();
         await tx.deleteFrom('devices').where('product_id', '=', productId).execute();
       }
+      await tx
+        .deleteFrom('license_deliveries')
+        .where('tenant_id', '=', TENANT)
+        .execute();
       await tx.deleteFrom('licenses').where('product_id', '=', productId).execute();
       await tx.deleteFrom('license_batches').where('product_id', '=', productId).execute();
       await tx.deleteFrom('policies').where('product_id', '=', productId).execute();

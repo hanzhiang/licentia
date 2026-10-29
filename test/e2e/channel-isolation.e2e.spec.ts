@@ -80,6 +80,10 @@ d.sequential('channel-scoped data isolation', () => {
 
   afterAll(async () => {
     await withTenantTx(db, TENANT, async (tx) => {
+      await tx
+        .deleteFrom('license_deliveries')
+        .where('tenant_id', '=', TENANT)
+        .execute();
       await tx.deleteFrom('licenses').where('product_id', '=', productId).execute();
       await tx.deleteFrom('license_batches').where('product_id', '=', productId).execute();
       await tx.deleteFrom('policies').where('id', '=', policyId).execute();
