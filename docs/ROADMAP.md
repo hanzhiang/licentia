@@ -65,7 +65,7 @@ Compose 只在开发机跑过，`docs/OPERATIONS.md` 里的恢复演练不是最
 |---|---|---|
 | ~~通知中心~~ | ~~有 outbox 表与投递器，无界面~~ | 已完成：`/admin/v1/notifications` 列表 + 手动重投 + 后台「通知投递」页；同时修掉了「retrying 永远不会被重新领取」的缺陷 |
 | 席位明细 | 只有聚合数（设备指纹 HMAC 不可逆） | 新增设备→用户绑定明细，支持按用户看席位数 |
-| 报表导出 | 只有审计可导出 CSV | 报表按当前筛选导出 CSV/Excel |
+| ~~报表导出~~ | ~~只有审计可导出 CSV~~ | 已完成：渠道统计 / 按产品 / 按天三类 CSV（带 BOM，Excel 直开），报表页补上「总览」标签 |
 | 告警规则 | 有 `/metrics`，无告警 | Prometheus rules：投递失败率、worker 停滞、5xx 率、席位打满 |
 | 全链路追踪 | 只有 request_id | 接入 OpenTelemetry（HTTP → DB → worker） |
 | 压测 | 小规模手工 | k6 场景：批量发码、心跳洪峰、激活并发；给出容量结论 |
