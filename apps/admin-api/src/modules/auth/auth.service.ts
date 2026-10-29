@@ -6,7 +6,7 @@ import { uuidv7, withSystemTx, type LpDb } from '@lp/db';
 import { hashPassword, signJwt, verifyPassword } from '@lp/auth';
 import { writeAudit } from '@lp/audit';
 import {  getConfig, log } from '@lp/config';
-import { buildChannels } from '@lp/notify';
+import { buildChannels, loadTenantLocale, renderTemplate, type TemplateLocale } from '@lp/notify';
 import type { Redis } from '@lp/cache';
 import { DB } from '../../db.module';
 import { REDIS } from '../../redis.module';
@@ -256,7 +256,7 @@ export class AuthService {
    * 限流落在 Redis(跨副本共享)，Redis 不可用时退化为进程内计数。
    */
   async register(
-    input: { email: string; password: string; developerName: string },
+    input: { email: string; password: string; developerName: string; locale?: string },
     ip: string | null,
   ): Promise<RegisterResult> {
     const email = input.email.trim().toLowerCase();
@@ -273,6 +273,8 @@ export class AuthService {
     const userId = uuidv7();
     const tenantCode = buildTenantCode(name);
     const passwordHash = hashPassword(input.password);
+    // 出站邮件语言: 跟随注册时的浏览器语言, 之后可在「设置」里改
+    const locale: TemplateLocale = input.locale === 'en' ? 'en' : 'zh-CN';
 
     await withSystemTx(this.db, async (tx) => {
       await tx
@@ -283,6 +285,8 @@ export class AuthService {
           name,
           status: 'active',
           plan: 'standard',
+          // 出站邮件语言: 跟随注册时的浏览器语言, 之后可在「设置」里改
+          locale,
           settings: {},
           created_at: new Date(),
           updated_at: new Date(),
@@ -321,7 +325,7 @@ export class AuthService {
       });
     });
 
-    const code = await this.issueVerifyCode(email);
+    const code = await this.issueVerifyCode(email, locale);
     const dev = getConfig().NODE_ENV !== 'prod';
     return { email, requires_verification: true, ...(dev ? { dev_code: code } : {}) };
   }
@@ -406,7 +410,7 @@ export class AuthService {
     const user = await withSystemTx(this.db, (tx) =>
       tx
         .selectFrom('users')
-        .select(['id', 'email_verified_at', 'status'])
+        .select(['id', 'tenant_id', 'email_verified_at', 'status'])
         .where('email', '=', email)
         .executeTakeFirst(),
     );
@@ -414,7 +418,8 @@ export class AuthService {
     if (!user || user.status !== 'active' || user.email_verified_at) {
       return { sent: true };
     }
-    const code = await this.issueVerifyCode(email);
+    const locale = user.tenant_id ? await loadTenantLocale(this.db, user.tenant_id) : 'zh-CN';
+    const code = await this.issueVerifyCode(email, locale);
     const dev = getConfig().NODE_ENV !== 'prod';
     return { sent: true, ...(dev ? { dev_code: code } : {}) };
   }
@@ -451,7 +456,7 @@ export class AuthService {
   }
 
   /** 生成并发送验证码(无邮件通道时只写日志, 非生产环境随响应下发) */
-  private async issueVerifyCode(email: string): Promise<string> {
+  private async issueVerifyCode(email: string, locale: TemplateLocale = 'zh-CN'): Promise<string> {
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
     const tag = this.emailTag(email);
     if (this.redis) {
@@ -463,15 +468,7 @@ export class AuthService {
       await channel
         .send(
           { to: email },
-          {
-            subject: '【Licentia】开发者账号邮箱验证',
-            text: [
-              '你好，',
-              '',
-              `你的验证码是 ${code}，15 分钟内有效。`,
-              '若这不是你本人的操作，请忽略本邮件。',
-            ].join('\n'),
-          },
+          renderTemplate('email_verify', { code, expires_minutes: VERIFY_TTL_S / 60 }, locale),
         )
         .catch(() => undefined);
     } else {

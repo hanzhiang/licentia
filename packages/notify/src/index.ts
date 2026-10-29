@@ -4,6 +4,7 @@ import type { NotificationChannel } from './channel';
 
 export * from './channel';
 export * from './templates';
+export * from './template-store';
 export * from './channels';
 export { deliverPending, isRetryable } from './delivery';
 export type { DeliverDeps, DeliveryStatus, NotifyRunSummary } from './delivery';

@@ -65,6 +65,7 @@ export class AuthController {
         email: parsed.data.email,
         password: parsed.data.password,
         developerName: parsed.data.developer_name,
+        locale: preferredLocale(req),
       },
       clientIp(req),
     );
@@ -114,4 +115,11 @@ export class AuthController {
     const data = await this.service.profile(currentUser(req).id);
     void reply.code(200).send({ data });
   }
+}
+
+/** 取浏览器首选语言的前缀(用于新注册租户的出站邮件语言) */
+function preferredLocale(req: FastifyRequest): 'zh-CN' | 'en' {
+  const raw = req.headers['accept-language'];
+  const first = typeof raw === 'string' ? raw.split(',')[0]?.trim() : '';
+  return first && first.toLowerCase().startsWith('en') ? 'en' : 'zh-CN';
 }

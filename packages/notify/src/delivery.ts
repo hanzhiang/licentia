@@ -3,7 +3,7 @@ import { Kysely, sql } from 'kysely';
 import { LpDb, withSystemTx } from '@lp/db';
 import { decryptAead } from '@lp/keygen';
 import {  getConfig, log } from '@lp/config';
-import { renderTemplate } from './templates';
+import { renderForTenant } from './template-store';
 import { fail, type NotificationChannel } from './channel';
 
 /**
@@ -89,7 +89,8 @@ export async function deliverPending(deps: DeliverDeps, limit = 50): Promise<Not
 
     let result;
     try {
-      const message = renderTemplate(claimed.template_code, {
+      // 租户可覆盖模板文案; 语言取租户 locale(内置中文/英文两版)
+      const message = await renderForTenant(deps.db, claimed.tenant_id, claimed.template_code, {
         license_id: claimed.license_id ?? '',
         due_in_days: Number(claimed.payload.due_in_days ?? 0),
         expires_at: (claimed.payload.expires_at as string | null | undefined) ?? null,

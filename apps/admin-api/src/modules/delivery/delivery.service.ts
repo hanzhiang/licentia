@@ -4,7 +4,7 @@ import { AppError, errLicNotFound, errReqInvalid } from '@lp/domain';
 import { decryptAead, encryptAead, maskCode } from '@lp/keygen';
 import { LpDb, uuidv7, withTenantTx } from '@lp/db';
 import { writeAudit } from '@lp/audit';
-import { buildChannels } from '@lp/notify';
+import { buildChannels, renderForTenant, type RenderedMessage } from '@lp/notify';
 import { getConfig } from '@lp/config';
 import { DB } from '../../db.module';
 import type { ActorInfo } from '../../iam/actor';
@@ -60,25 +60,17 @@ export class DeliveryService {
         .executeTakeFirst(),
     );
 
-    const recipient = to ?? (await this.contactEmailOf(tenantId, lic.end_customer_id));
-    const outcome = await this.send(
-      recipient,
-      `【授权码】${product?.name ?? '您的产品'}`,
-      [
-        '你好，',
-        '',
-        `这是你的授权码：`,
-        '',
-        lic.code,
-        '',
-        lic.expires_at
-          ? `有效期至 ${lic.expires_at.toISOString().slice(0, 10)}。`
-          : '该授权为永久授权。',
-        `可激活设备数：${lic.device_limit}。`,
-        '',
-        '请在客户端中输入该授权码完成激活。如有疑问请联系你的供应商。',
-      ].join('\n'),
-    );
+    const { email, orgName } = await this.recipientOf(tenantId, lic.end_customer_id);
+    const recipient = to ?? email;
+    const message = await renderForTenant(this.db, tenantId, 'license_delivery', {
+      product_name: product?.name,
+      org_name: orgName ?? undefined,
+      license_id: lic.id,
+      code: lic.code,
+      expires_at: lic.expires_at ? lic.expires_at.toISOString() : null,
+      device_limit: lic.device_limit,
+    });
+    const outcome = await this.send(recipient, message);
 
     await withTenantTx(this.db, tenantId, async (tx) => {
       await this.recordDelivery(tx, tenantId, {
@@ -152,19 +144,13 @@ export class DeliveryService {
       tx.selectFrom('products').select(['name']).where('id', '=', batch.product_id).executeTakeFirst(),
     );
 
-    const outcome = await this.send(
-      to,
-      `【授权码】${product?.name ?? '您的产品'} · 批次 ${batch.code}`,
-      [
-        '你好，',
-        '',
-        `以下是本批次共 ${rows.length} 个授权码：`,
-        '',
-        ...rows.map((r) => r.code),
-        '',
-        '每个码可在其设备数上限内激活。如有疑问请联系你的供应商。',
-      ].join('\n'),
-    );
+    const message = await renderForTenant(this.db, tenantId, 'license_batch_delivery', {
+      product_name: product?.name,
+      batch_code: batch.code,
+      count: rows.length,
+      codes: rows.map((r) => r.code).join('\n'),
+    });
+    const outcome = await this.send(to, message);
     outcome.count = rows.length;
 
     await withTenantTx(this.db, tenantId, async (tx) => {
@@ -197,31 +183,34 @@ export class DeliveryService {
     return outcome;
   }
 
-  /** 组织联系人邮箱(授权绑定了组织时), 解密失败按没有处理 */
-  private async contactEmailOf(
+  /** 组织联系人与组织名称(授权绑定了组织时); 解密失败按没有邮箱处理 */
+  private async recipientOf(
     tenantId: string,
     endCustomerId: string | null,
-  ): Promise<string | null> {
-    if (!endCustomerId) return null;
+  ): Promise<{ email: string | null; orgName: string | null }> {
+    if (!endCustomerId) return { email: null, orgName: null };
     const org = await withTenantTx(this.db, tenantId, (tx) =>
       tx
         .selectFrom('end_customers')
-        .select(['contact_email_enc'])
+        .select(['name', 'contact_email_enc'])
         .where('id', '=', endCustomerId)
         .executeTakeFirst(),
     );
-    if (!org?.contact_email_enc) return null;
+    if (!org) return { email: null, orgName: null };
+    if (!org.contact_email_enc) return { email: null, orgName: org.name ?? null };
     try {
-      return decryptAead(getConfig().NOTIFY_ADDR_ENC_KEY, org.contact_email_enc);
+      return {
+        email: decryptAead(getConfig().NOTIFY_ADDR_ENC_KEY, org.contact_email_enc),
+        orgName: org.name ?? null,
+      };
     } catch {
-      return null;
+      return { email: null, orgName: org.name ?? null };
     }
   }
 
   private async send(
     to: string | null,
-    subject: string,
-    text: string,
+    message: RenderedMessage,
   ): Promise<DeliveryOutcome & { to: string }> {
     if (!to) {
       throw new AppError(
@@ -233,7 +222,7 @@ export class DeliveryService {
     if (!channel) {
       throw new AppError('DEPENDENCY_UNAVAILABLE', '未配置邮件通道，无法发送授权码');
     }
-    const res = await channel.send({ to }, { subject, text });
+    const res = await channel.send({ to }, message);
     return {
       sent: res.ok,
       to,

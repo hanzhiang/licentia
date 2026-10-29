@@ -122,6 +122,7 @@ export async function migrateLegacy(opts: MigrateOptions): Promise<LegacyReport>
           name: '存量迁移租户',
           status: 'active',
           plan: 'standard',
+          locale: 'zh-CN',
           settings: {},
           created_at: new Date(),
           updated_at: new Date(),

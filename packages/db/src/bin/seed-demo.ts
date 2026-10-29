@@ -36,6 +36,7 @@ export async function seedDemoFixtures(url: string, password = 'Passw0rd!demo'):
           name: '演示开发者',
           status: 'active',
           plan: 'standard',
+          locale: 'zh-CN',
           settings: '{}' as unknown as Record<string, unknown>,
           created_at: new Date(),
           updated_at: new Date(),

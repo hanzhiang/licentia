@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ConsoleChannel } from './channels';
 import { fail, ok } from './channel';
-import { knownTemplates, renderTemplate } from './templates';
+import { extractVars, knownTemplates, renderOverride, renderTemplate } from './templates';
 
 describe('notification templates', () => {
   it('renders all expire warning windows with the remaining days', () => {
@@ -31,6 +31,55 @@ describe('notification templates', () => {
     const m = renderTemplate('expire_warning_1d', { license_id: 'lic-2' });
     expect(m.text).toContain('未知');
     expect(m.text).not.toContain('undefined');
+  });
+});
+
+describe('bilingual built-ins', () => {
+  it('renders the English variant when locale is en', () => {
+    const m = renderTemplate(
+      'expire_warning_7d',
+      { license_id: 'lic-1', due_in_days: 7, expires_at: '2026-11-04T00:00:00.000Z' },
+      'en',
+    );
+    expect(m.subject).toContain('expires in 7 days');
+    expect(m.text).toContain('Hello there');
+    expect(m.text).not.toMatch(/[一-龥]/);
+  });
+
+  it('renders the license delivery template with code and validity', () => {
+    const m = renderTemplate(
+      'license_delivery',
+      {
+        license_id: 'lic-1',
+        code: 'A9WA-XDMY',
+        device_limit: 3,
+        expires_at: '2027-01-31T00:00:00.000Z',
+      },
+      'en',
+    );
+    expect(m.subject).toContain('license code');
+    expect(m.text).toContain('A9WA-XDMY');
+    expect(m.text).toContain('Valid until 2027-01-31');
+    expect(m.text).toContain('Devices allowed: 3');
+  });
+
+  it('says perpetual when there is no expiry', () => {
+    const m = renderTemplate('license_delivery', { license_id: 'l', code: 'X' });
+    expect(m.text).toContain('永久有效');
+  });
+
+  it('extracts declared variables for validation', () => {
+    expect(extractVars('a {{product_name}} b {{ days }} {{org_name}}')).toEqual([
+      'product_name',
+      'days',
+      'org_name',
+    ]);
+  });
+
+  it('leaves undeclared placeholders alone instead of printing undefined', () => {
+    const m = renderOverride('s {{nope}}', 'b', null, {});
+    expect(m.text).toBe('b');
+    expect(m.subject).toBe('s {{nope}}');
   });
 });
 

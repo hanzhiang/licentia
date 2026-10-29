@@ -20,10 +20,18 @@ export async function notifyOnce(db: Kysely<LpDb>): Promise<number> {
     await withSystemTx(db, async (tx) => {
       const due = await tx
         .selectFrom('licenses')
-        .select(['id', 'tenant_id', 'expires_at'])
-        .where('status', '=', 'activated')
-        .where('expires_at', 'is not', null)
-        .where(sql<boolean>`expires_at::date - current_date = ${days}`)
+        .leftJoin('products', 'products.id', 'licenses.product_id')
+        .leftJoin('end_customers', 'end_customers.id', 'licenses.end_customer_id')
+        .select([
+          'licenses.id',
+          'licenses.tenant_id',
+          'licenses.expires_at',
+          'products.name as product_name',
+          'end_customers.name as org_name',
+        ])
+        .where('licenses.status', '=', 'activated')
+        .where('licenses.expires_at', 'is not', null)
+        .where(sql<boolean>`licenses.expires_at::date - current_date = ${days}`)
         .limit(5000)
         .execute();
       for (const lic of due) {
@@ -40,6 +48,9 @@ export async function notifyOnce(db: Kysely<LpDb>): Promise<number> {
               license_id: lic.id,
               due_in_days: days,
               expires_at: lic.expires_at?.toISOString() ?? null,
+              // 渲染时直接用, 免得投递器再回查一次产品与组织名
+              product_name: lic.product_name ?? null,
+              org_name: lic.org_name ?? null,
             },
             scheduled_for: today,
             // 只入队, 不预写 sent: 真实投递结果由 deliverPending 回填

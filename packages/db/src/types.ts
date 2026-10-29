@@ -16,6 +16,8 @@ export interface TenantsRow {
   name: string;
   status: string;
   plan: string;
+  /** 该租户发出邮件的语言: zh-CN | en (0014) */
+  locale: string;
   settings: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
@@ -384,9 +386,23 @@ export interface DeviceRequestsRow {
   expires_at: Date;
 }
 
+export interface NotificationTemplatesRow {
+  id: string;
+  tenant_id: string;
+  code: string;
+  locale: string;
+  subject: string;
+  body: string;
+  sms_body: string | null;
+  created_at: Date;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
 export interface LpDb {
   device_requests: DeviceRequestsRow;
   license_deliveries: LicenseDeliveriesRow;
+  notification_templates: NotificationTemplatesRow;
   tenants: TenantsRow;
   users: UsersRow;
   roles: RolesRow;

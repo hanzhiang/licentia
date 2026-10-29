@@ -16,6 +16,8 @@ import { MemberModule } from './modules/member/member.module';
 import { DeliveryModule } from './modules/delivery/delivery.module';
 import { DeviceRequestAdminModule } from './modules/devicerequest/devicerequest.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { NotifyTemplatesModule } from './modules/notifytemplate/notify-template.module';
+import { TenantModule } from './modules/tenant/tenant.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -37,6 +39,8 @@ import { HealthController } from './health.controller';
     DeliveryModule,
     DeviceRequestAdminModule,
     CatalogModule,
+    NotifyTemplatesModule,
+    TenantModule,
   ],
   controllers: [HealthController],
 })

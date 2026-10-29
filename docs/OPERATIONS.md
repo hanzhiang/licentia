@@ -77,6 +77,8 @@ pnpm seed:demo       # (可选) 演示用开发者 demo 及其 5 个角色账号
 | `audit:read` | 是 | 否 | 否 | 是 | 否 |
 | `apikey:write` | 是 | 否 | 否 | 否 | 否 |
 | `webhook:write` | 是 | 否 | 否 | 否 | 否 |
+| `notify:read` / `notify:write` | 是 | 是 | 读 | 读 | 否 |
+| `tenant:read` / `tenant:write` | 是 | 读 | 读 | 否 | 否 |
 
 平台管理员只有 `platform:developer:read|write|suspend`，不在上表内。
 
@@ -150,6 +152,27 @@ worker 监听 `PORT_WORKER`（默认 3005）：
 
 Access token 默认 15 分钟。管理面板在收到 401 后会自动使用 refresh token 轮换新会话；
 refresh token 失效时才返回登录页。
+
+### 2.9 通知模板与出站邮件语言
+
+系统发出的每一封邮件都走模板，模板可改、可预览、可恢复默认：
+
+```
+GET    /admin/v1/notify-templates                 列出全部模板(含内置默认与覆盖状态)
+PUT    /admin/v1/notify-templates/:code/:locale   覆盖(zh-CN / en)
+DELETE /admin/v1/notify-templates/:code/:locale   恢复内置默认
+POST   /admin/v1/notify-templates/:code/:locale/preview   用示例变量渲染预览(不发信)
+```
+
+现有模板码：`email_verify`（注册验证码）、`license_delivery`（单个码）、
+`license_batch_delivery`（批次）、`expire_warning_30d/7d/1d`（到期提醒）。
+
+- 正文是纯文本，变量写成 `{{code}}`、`{{product_name}}`、`{{org_name}}`、`{{validity}}`、`{{device_limit}}` 等；
+  每个模板允许哪些变量由系统声明，存了未声明的变量会被拒绝（避免发出去一行 `{{customer_name}}`）。
+- 渲染时自动补缺：没有组织名时用「客户 / there」，有到期日时生成「有效期至 2026-12-31 / Valid until …」，
+  没有到期日时用「永久有效 / Never expires」。
+- 语言取决于 **租户的 locale**（`PATCH /admin/v1/tenant {"locale":"en"}`），注册时按浏览器语言自动选择，
+  之后可在后台改；平台后台不干预开发者发出的文案。
 
 ## 3. 授权机制怎么用
 
