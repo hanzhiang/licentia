@@ -7,6 +7,7 @@ import { relayOnce } from './relay';
 import { dispatchOnce } from './dispatcher';
 import { notifyOnce } from './notifier';
 import { createHealthState, startHealthServer } from './health';
+import { runRetentionOnce } from './retention';
 
 /**
  * worker(骨架): 5s 节拍串行跑
@@ -69,6 +70,9 @@ async function expireUnactivated(): Promise<void> {
   if (n > 0) console.log(`[expire-scanner] ${n} unactivated license(s) -> expired`);
 }
 
+let lastRetentionAt = 0;
+const RETENTION_INTERVAL_MS = 3_600_000;
+
 async function tick(): Promise<void> {
   const startedAt = Date.now();
   try {
@@ -82,6 +86,11 @@ async function tick(): Promise<void> {
       console.log(
         `[notify] processed=${d.processed} sent=${d.sent} retrying=${d.retrying} dead=${d.dead} blocked=${d.blocked}`,
       );
+    }
+    // 数据清理每小时一次: 每 5 秒跑一遍纯属浪费, 还可能长时间持锁
+    if (Date.now() - lastRetentionAt > RETENTION_INTERVAL_MS) {
+      lastRetentionAt = Date.now();
+      await runRetentionOnce(db);
     }
     health.lastTickAt = Date.now();
     health.lastTickMs = Date.now() - startedAt;

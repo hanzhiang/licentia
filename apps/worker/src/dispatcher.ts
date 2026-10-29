@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { LpDb, withSystemTx } from '@lp/db';
 import { decryptAead } from '@lp/keygen';
 import { getConfig } from '@lp/config';
@@ -8,7 +8,8 @@ import { recordFailureAndMaybeTrip, recordSuccess } from './breaker';
 /**
  * Webhook 投递器(设计文档 §4.8): HMAC-SHA256 签名 + 退避重试(1m/5m/30m/2h/6h/12h) + 死信.
  * 端点级熔断见 breaker.ts: 窗口失败率超阈值即停投, 冷却后再试.
- * 单实例语义, 多副本需 FOR UPDATE SKIP LOCKED.
+ * 多副本安全: 取待投递行时用 FOR UPDATE SKIP LOCKED 原子领取, 并顺延 next_retry_at
+ * 作为租约(进程崩溃后最多等 2 分钟重试), 否则两个 worker 会重复投递同一条.
  */
 const RETRY_SCHEDULE_SEC = [60, 300, 1800, 7200, 21600, 43200];
 const TIMEOUT_MS = 5000;
@@ -21,17 +22,24 @@ export interface DispatchSummary {
 }
 
 export async function dispatchOnce(db: Kysely<LpDb>): Promise<DispatchSummary> {
-  const due = await withSystemTx(db, (tx) =>
-    tx
-      .selectFrom('webhook_deliveries')
-      .selectAll()
-      .where('status', '=', 'pending')
-      .where('next_retry_at', 'is not', null)
-      .where('next_retry_at', '<=', new Date())
-      .orderBy('created_at', 'asc')
-      .limit(20)
-      .execute(),
+  // 原子领取: 一步完成"挑出到期行 + 加锁 + 顺延租约", 多个 worker 不会拿到同一批
+  const claimed = await withSystemTx(db, (tx) =>
+    sql<{ id: string }>`
+      update webhook_deliveries d
+         set next_retry_at = now() + interval '2 minutes'
+       where d.id in (
+         select id from webhook_deliveries
+          where status = 'pending'
+            and next_retry_at is not null
+            and next_retry_at <= now()
+          order by created_at asc
+          limit 20
+          for update skip locked
+       )
+      returning d.id
+    `.execute(tx),
   );
+  const due = claimed.rows;
   const summary: DispatchSummary = { processed: due.length, success: 0, failed: 0, dead: 0 };
   for (const d of due) {
     const outcome = await deliverOne(db, d.id);
