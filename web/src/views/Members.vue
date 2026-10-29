@@ -61,7 +61,7 @@
         </el-form-item>
         <el-form-item :label="t('members.roleField')">
           <el-select v-model="form.role" style="width: 100%">
-            <el-option v-for="r in ROLE_VALUES" :key="r" :label="t(`members.roles.${r}`)" :value="r" />
+            <el-option v-for="r in ROLE_VALUES" :key="r" :label="t(`roles.${r}`)" :value="r" />
           </el-select>
         </el-form-item>
         <el-form-item v-if="form.role === 'developer_partner'" :label="t('members.channelField')">
@@ -82,7 +82,7 @@
           <span>{{ current?.email }}</span>
         </el-form-item>
         <el-form-item :label="t('members.newPassword')">
-          <el-input v-model="newPassword" type="password" show-password placeholder="至少 8 位" />
+          <el-input v-model="newPassword" type="password" show-password :placeholder="t('members.passwordHintPlaceholder')" />
         </el-form-item>
       </el-form>
       <p class="tip">{{ t('members.resetTip') }}</p>
@@ -94,12 +94,12 @@
 
     <el-dialog v-model="roleOpen" :title="t('members.roleTitle')" width="420px">
       <el-form label-width="86px">
-        <el-form-item label="成员">
+        <el-form-item :label="t('members.memberField')">
           <span>{{ current?.email }}</span>
         </el-form-item>
-        <el-form-item label="角色">
+        <el-form-item :label="t('members.roleField')">
           <el-select v-model="role" style="width: 100%">
-            <el-option v-for="r in ROLE_VALUES" :key="r" :label="t(`members.roles.${r}`)" :value="r" />
+            <el-option v-for="r in ROLE_VALUES" :key="r" :label="t(`roles.${r}`)" :value="r" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -159,7 +159,7 @@ function fmt(iso: string | null): string {
 function roleLabel(roles: string[]): string {
   const first = roles[0];
   return first && (ROLE_VALUES as readonly string[]).includes(first)
-    ? t(`members.roles.${first}`)
+    ? t(`roles.${first}`)
     : (first ?? '-');
 }
 

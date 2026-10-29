@@ -29,7 +29,7 @@
       <el-header class="header">
         <div>
           <strong>{{ auth.user?.email }}</strong>
-          <span class="role">{{ auth.user?.actor_type }}</span>
+          <span class="role">{{ roleLabel }}</span>
         </div>
         <div class="header-actions">
           <el-select
@@ -62,6 +62,20 @@ import { api } from '../api';
 const auth = useAuth();
 const router = useRouter();
 const { t } = useI18n();
+
+/** 顶栏角色标签: 认识的 actor_type 给文案, 其余原样显示 */
+const ROLE_TYPES = [
+  'platform_admin',
+  'developer_owner',
+  'developer_operator',
+  'developer_support',
+  'developer_finance',
+  'developer_partner',
+] as const;
+const roleLabel = computed(() => {
+  const r = auth.user?.actor_type ?? '';
+  return (ROLE_TYPES as readonly string[]).includes(r) ? t(`roles.${r}`) : r;
+});
 const locale = ref<Locale>(currentLocale());
 
 function changeLocale(value: Locale): void {
