@@ -1,0 +1,82 @@
+# Licentia 告警规则(Prometheus).
+#
+# 指标来自四个 HTTP 服务的 /metrics 与 worker 的 /metrics。
+# 若配置了 METRICS_TOKEN, 抓取端需要带 Authorization: Bearer <token>(见 prometheus.yml 示例)。
+#
+# 用法: 放进 Prometheus 的 rule_files, 或在容器里挂载到 /etc/prometheus/rules/。
+
+groups:
+  - name: licentia-availability
+    rules:
+      - alert: LicentiaTargetDown
+        expr: up{job=~"licentia-.*"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "{{ $labels.job }} 抓取失败"
+          description: "实例 {{ $labels.instance }} 已 2 分钟不可抓取, 先确认进程与端口。"
+
+      - alert: LicentiaMetricsMissing
+        expr: absent(lp_http_requests_all_total)
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "没有任何 HTTP 指标"
+          description: "可能所有服务都没起来, 或 /metrics 被 METRICS_TOKEN 挡住了抓取。"
+
+  - name: licentia-api
+    rules:
+      - alert: LicentiaHigh5xxRate
+        expr: |
+          sum(rate(lp_http_requests_total{status=~"5.."}[5m]))
+            /
+          clamp_min(sum(rate(lp_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "5xx 比例超过 5%"
+          description: "近 5 分钟 5xx 占比 {{ $value | humanizePercentage }}。先看 /metrics 里哪个 route 在报错。"
+
+      - alert: LicentiaSlowRoute
+        expr: |
+          sum(rate(lp_http_request_duration_ms_sum[5m])) by (route)
+            /
+          clamp_min(sum(rate(lp_http_requests_total[5m])) by (route), 0.001) > 1000
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "路由 {{ $labels.route }} 平均耗时超过 1s"
+          description: "近 5 分钟平均 {{ $value }} ms。常见原因是缺索引或锁等待。"
+
+  - name: licentia-worker
+    rules:
+      - alert: LicentiaWorkerStale
+        expr: lp_worker_stale == 1
+        for: 3m
+        labels:
+          severity: page
+        annotations:
+          summary: "worker 超过 60s 没有成功 tick"
+          description: "投递、续期、清理都会停摆。查 worker 日志里的 last_error, 以及数据库/Redis 连通性。"
+
+      - alert: LicentiaNotifyDead
+        expr: lp_worker_last_dead > 0
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "有通知投递放弃(dead)"
+          description: "最近一次投递出现 dead, 去后台「通知投递」看错误原因并重投。"
+
+      - alert: LicentiaNotifyBlocked
+        expr: lp_worker_last_blocked > 0
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: "有通知因缺少收件人/通道被置 blocked"
+          description: "通常是授权没绑定组织联系人, 或生产环境没配 SMTP。"

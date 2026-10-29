@@ -143,6 +143,13 @@ worker 监听 `PORT_WORKER`（默认 3005）：
 
 建议把 `/healthz` 接给容器健康检查或负载均衡，`lp_worker_stale == 1` 时告警。
 
+四个 HTTP 服务与 worker 都暴露 `/metrics`（受 `METRICS_TOKEN` 保护）。
+直接用现成的告警规则与抓取示例：
+
+- `deploy/prometheus/alerts.yml`：目标掉线、5xx 比例、慢路由、worker 停滞、
+  通知 dead/blocked 五类规则
+- `deploy/prometheus/prometheus.yml`：五个服务的抓取片段（含 token 文件）
+
 ### 2.8 停用开发者账号
 
 平台在「开发者账号」里停用后：

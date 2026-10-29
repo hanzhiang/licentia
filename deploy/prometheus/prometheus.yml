@@ -1,0 +1,42 @@
+# Prometheus 抓取配置示例(片段, 合并进现有 prometheus.yml).
+#
+# 如果设置了 METRICS_TOKEN, 把 token 写进 authorization.credentials;
+# 没设置且 NODE_ENV=prod 时 /metrics 会返回 404(见 packages/http/src/metrics.ts)。
+#
+# worker 的 /healthz 与 /metrics 在同一端口(PORT_WORKER, 默认 3005)。
+
+scrape_configs:
+  - job_name: licentia-admin
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/licentia-metrics-token
+    static_configs:
+      - targets: ['admin-api:3001']
+
+  - job_name: licentia-client
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/licentia-metrics-token
+    static_configs:
+      - targets: ['client-api:3002']
+
+  - job_name: licentia-open
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/licentia-metrics-token
+    static_configs:
+      - targets: ['open-api:3003']
+
+  - job_name: licentia-portal
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/licentia-metrics-token
+    static_configs:
+      - targets: ['portal-api:3004']
+
+  - job_name: licentia-worker
+    metrics_path: /metrics
+    authorization:
+      credentials_file: /etc/prometheus/licentia-metrics-token
+    static_configs:
+      - targets: ['worker:3005']
