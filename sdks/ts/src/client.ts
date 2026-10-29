@@ -24,6 +24,8 @@ export function memoryStorage(): KvStorage {
 export interface LicenseClientOptions {
   baseUrl: string;
   productCode: string;
+  /** 产品编码在多个开发者下重名时必填, 用于定位开发者 */
+  tenantCode?: string;
   appVersion: string;
   device: DeviceInfo;
   /** 组织许可的席位归属; 激活和心跳都会携带, 服务端 HMAC 后作为席位成员 */
@@ -84,6 +86,77 @@ export class LicenseClient {
     const res = await this.request<ActivateResult>('POST', '/client/v1/activate', body, 3);
     this.adoptServerResult(res);
     return this.entitlement();
+  }
+
+  private deviceBody(): Record<string, unknown> {
+    return {
+      fp_type: this.opts.device.fpType,
+      fingerprint: this.opts.device.fingerprint,
+      platform: this.opts.device.platform,
+    };
+  }
+
+  /**
+   * 远程授权第一步: 上报设备, 拿到一个展示给用户的短码。
+   * 用户把短码报给客服/开发者, 对方在后台批准后调用 awaitDeviceApproval。
+   */
+  async requestDeviceApproval(): Promise<{ requestCode: string; expiresAt: string }> {
+    const res = await this.fetchImpl(`${this.opts.baseUrl.replace(/\/$/, '')}/client/v1/device-requests`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        product_code: this.opts.productCode,
+        ...(this.opts.tenantCode ? { tenant_code: this.opts.tenantCode } : {}),
+        app_version: this.opts.appVersion,
+        ...(this.opts.userId ? { user_id: this.opts.userId } : {}),
+        device: this.deviceBody(),
+      }),
+    });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } };
+      throw new SdkError(err.error?.code ?? 'DEVICE_REQUEST_FAILED', err.error?.message ?? '设备码申请失败', res.status);
+    }
+    const json = (await res.json()) as { data: { request_code: string; expires_at: string } };
+    return { requestCode: json.data.request_code, expiresAt: json.data.expires_at };
+  }
+
+  /**
+   * 远程授权第二步: 轮询直到被批准, 拿到授权码后自动完成激活。
+   * 超时或拒绝会抛 SdkError, 调用方应提示用户重新申请。
+   */
+  async awaitDeviceApproval(
+    requestCode: string,
+    opts: { timeoutMs?: number; intervalMs?: number } = {},
+  ): Promise<Entitlement> {
+    const timeoutMs = opts.timeoutMs ?? 10 * 60 * 1000;
+    const intervalMs = opts.intervalMs ?? 3000;
+    const deadline = Date.now() + timeoutMs;
+    const url = `${this.opts.baseUrl.replace(/\/$/, '')}/client/v1/device-requests/${encodeURIComponent(requestCode)}/poll`;
+
+    while (Date.now() < deadline) {
+      const res = await this.fetchImpl(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ device: this.deviceBody() }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } };
+        throw new SdkError(err.error?.code ?? 'DEVICE_REQUEST_FAILED', err.error?.message ?? '轮询失败', res.status);
+      }
+      const json = (await res.json()) as {
+        data: { status: string; code?: string; note?: string | null };
+      };
+      const d = json.data;
+      if (d.status === 'approved' && d.code) return this.activate(d.code);
+      if (d.status === 'rejected') {
+        throw new SdkError('DEVICE_REQUEST_REJECTED', d.note ?? '申请已被拒绝');
+      }
+      if (d.status === 'expired') {
+        throw new SdkError('DEVICE_REQUEST_EXPIRED', '设备码已过期, 请重新申请');
+      }
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    throw new SdkError('DEVICE_REQUEST_TIMEOUT', '等待授权超时');
   }
 
   async heartbeat(): Promise<Entitlement> {

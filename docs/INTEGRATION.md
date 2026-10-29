@@ -176,24 +176,74 @@ LICENSE_CODE=$code LICENSE_STATE_FILE=./data/demo-client-state.json pnpm client:
 
 ---
 
-## 五、尚未支持：远程授权
+## 五、远程授权（已实现）
 
-你提的第二种激活方式（客户端上报设备码 → 开发者在后台批准 → 客户端拿到授权），
-**目前没有实现**。现在的激活只有一条路径：客户端直接提交授权码。
+除了"客户端拿着授权码激活"，还有第二条路径：**客户端先上报设备，开发者后台批准，客户端轮询拿码**。
+适合设备已经装好、但码还没发到用户手上的场景。
 
-要实现，需要在现有链路上加三段：
+### 1. 客户端申请设备码
 
-1. **设备码申请**：客户端在无码状态下把自己的设备指纹 + 应用标识提交到
-   `POST /client/v1/device-requests`，服务端生成一次性 `request_code` 返回给客户端显示
-2. **开发者批准**：管理后台新增「待批准设备」页，开发者选择产品/策略/有效期后批准，
-   服务端生成授权码并绑定该设备，写入激活记录
-3. **客户端轮询/长轮询**：`GET /client/v1/device-requests/:request_code`，
-   未批准返回 `pending`，批准后返回与激活接口完全相同的响应体
+```http
+POST /client/v1/device-requests        (client-api :3002，匿名)
+{
+  "product_code": "dorm-check",
+  "tenant_code":  "demo",              // 产品编码在多个开发者下重名时必填
+  "app_version":  "2.4.1",
+  "user_id":      "student-1001",      // 可选，作为席位归属
+  "device": { "fp_type": "machine_id", "fingerprint": "...", "platform": "windows" }
+}
+```
 
-关键设计点：
-- 请求必须有过期时间（如 10 分钟），否则会堆积大量僵尸请求
-- 批准动作要落审计，且受渠道范围约束
-- 批准后下发的仍是普通授权码，**后续链路完全复用**，不需要第二套心跳/离线逻辑
-- 客户端轮询需要限流，避免变成 DDoS 手段
+返回：
 
-这部分我还没动代码。要做的话是个中等规模的功能（新表 + 两个接口 + 一个后台页面）。
+```json
+{ "request_code": "A9WA-XDMY", "expires_at": "...", "poll_interval_s": 3 }
+```
+
+把 `request_code` 显示给用户，让他报给客服。**有效期 10 分钟**，同一设备每小时最多申请 5 次。
+
+### 2. 开发者在后台批准
+
+管理面板 →「待批准设备」，选择策略后批准。对应接口：
+
+```http
+GET  /admin/v1/device-requests?status=pending     license:read
+POST /admin/v1/device-requests/:id/approve        license:issue   { "policy_id": "..." }
+POST /admin/v1/device-requests/:id/reject         license:issue   { "note": "未购买" }
+```
+
+批准时按策略生成一张**普通授权码**并绑定这张申请；拒绝会带上原因让客户端展示。
+
+### 3. 客户端轮询并激活
+
+```http
+POST /client/v1/device-requests/:code/poll
+{ "device": { "fp_type": "machine_id", "fingerprint": "...", "platform": "windows" } }
+```
+
+```json
+{ "status": "pending",  "expires_at": "..." }
+{ "status": "approved", "code": "D0RM-...", "product_code": "dorm-check" }
+{ "status": "rejected", "note": "未购买" }
+{ "status": "expired" }
+```
+
+拿到 `approved` 后用返回的 `code` 走**标准激活接口**——后续心跳、离线许可、校验全部复用，
+不存在第二套鉴权。
+
+**轮询必须带同样的设备指纹**，否则别人拿到短码也能把授权领走（服务端会按"不存在"处理）。
+
+SDK 已封装：
+
+```ts
+const { requestCode } = await client.requestDeviceApproval();
+showToUser(requestCode);                       // 展示给用户报给客服
+const entitlement = await client.awaitDeviceApproval(requestCode, { timeoutMs: 10 * 60_000 });
+```
+
+### 安全约束
+
+- 申请码 10 分钟过期，同设备每小时限 5 次
+- 批准受渠道范围约束，且落审计（`device_request.approve` / `.reject`）
+- 重复批准、批准已过期申请都会被拒
+- 策略与申请产品不一致时拒绝批准

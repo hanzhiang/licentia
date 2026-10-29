@@ -365,7 +365,27 @@ export interface LicenseDeliveriesRow {
   created_at: Date;
 }
 
+export interface DeviceRequestsRow {
+  id: string;
+  request_code: string;
+  tenant_id: string;
+  product_id: string;
+  fp_type: string;
+  fingerprint: Buffer;
+  platform: string;
+  app_version: string | null;
+  user_id: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  license_id: string | null;
+  decided_by: string | null;
+  decided_at: Date | null;
+  decision_note: string | null;
+  created_at: Date;
+  expires_at: Date;
+}
+
 export interface LpDb {
+  device_requests: DeviceRequestsRow;
   license_deliveries: LicenseDeliveriesRow;
   tenants: TenantsRow;
   users: UsersRow;

@@ -74,6 +74,7 @@ d.sequential('seat and concurrency limits', () => {
         .deleteFrom('license_deliveries')
         .where('tenant_id', '=', TENANT)
         .execute();
+      await tx.deleteFrom('device_requests').where('product_id', '=', productId).execute();
       await tx.deleteFrom('licenses').where('product_id', '=', productId).execute();
       await tx.deleteFrom('license_batches').where('product_id', '=', productId).execute();
       await tx.deleteFrom('policies').where('product_id', '=', productId).execute();

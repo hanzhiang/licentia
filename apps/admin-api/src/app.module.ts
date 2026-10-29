@@ -14,6 +14,7 @@ import { EndCustomersModule } from './modules/endcustomer/end-customers.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { MemberModule } from './modules/member/member.module';
 import { DeliveryModule } from './modules/delivery/delivery.module';
+import { DeviceRequestAdminModule } from './modules/devicerequest/devicerequest.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { HealthController } from './health.controller';
 
@@ -34,6 +35,7 @@ import { HealthController } from './health.controller';
     PlatformModule,
     MemberModule,
     DeliveryModule,
+    DeviceRequestAdminModule,
     CatalogModule,
   ],
   controllers: [HealthController],

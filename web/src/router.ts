@@ -20,6 +20,11 @@ const router = createRouter({
           meta: { permsAny: ['product:write', 'policy:write', 'channel:write'] },
         },
         { path: 'batches', component: () => import('./views/Batches.vue'), meta: { perm: 'license:issue' } },
+        {
+          path: 'device-requests',
+          component: () => import('./views/DeviceRequests.vue'),
+          meta: { perm: 'license:issue' },
+        },
         { path: 'customers', component: () => import('./views/EndCustomers.vue'), meta: { perm: 'end_customer:write' } },
         { path: 'members', component: () => import('./views/Members.vue'), meta: { perm: 'member:read' } },
         { path: 'reports', component: () => import('./views/Reports.vue'), meta: { perm: 'report:read' } },

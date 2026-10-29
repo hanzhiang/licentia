@@ -99,6 +99,7 @@ d.sequential('license delivery', () => {
         await tx.deleteFrom('devices').where('product_id', '=', productId).execute();
       }
       await tx.deleteFrom('license_deliveries').where('batch_id', '=', batchId).execute();
+      await tx.deleteFrom('device_requests').where('product_id', '=', productId).execute();
       await tx.deleteFrom('licenses').where('product_id', '=', productId).execute();
       await tx.deleteFrom('license_batches').where('product_id', '=', productId).execute();
       await tx.deleteFrom('policies').where('product_id', '=', productId).execute();
