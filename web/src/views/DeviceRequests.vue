@@ -34,7 +34,7 @@
       </el-table-column>
       <el-table-column label="操作" width="150">
         <template #default="{ row }">
-          <template v-if="row.status === 'pending'">
+          <template v-if="row.status === 'pending' && auth.can('license:issue')">
             <el-button link type="primary" @click="openApprove(row)">批准</el-button>
             <el-button link type="danger" @click="reject(row)">拒绝</el-button>
           </template>
@@ -79,6 +79,9 @@
 import { onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { api, errMsg } from '../api';
+import { useAuth } from '../store';
+
+const auth = useAuth();
 
 interface DeviceRequest {
   id: string;

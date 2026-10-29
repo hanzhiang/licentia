@@ -19,7 +19,7 @@
       class="notice"
     />
 
-    <el-form label-position="top" class="issue-form">
+    <el-form v-if="auth.can('license:issue')" label-position="top" class="issue-form">
       <el-form-item label="产品">
         <el-select v-model="productId" placeholder="选择产品" style="width: 100%" @change="productChanged">
           <el-option
@@ -107,6 +107,9 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { api, errMsg, idemKey } from '../api';
+import { useAuth } from '../store';
+
+const auth = useAuth();
 
 interface Product {
   id: string;

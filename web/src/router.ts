@@ -19,13 +19,13 @@ const router = createRouter({
           // 产品/策略/渠道分开授权: 有任意一项写权限就能进这个页面
           meta: { permsAny: ['product:write', 'policy:write', 'channel:write'] },
         },
-        { path: 'batches', component: () => import('./views/Batches.vue'), meta: { perm: 'license:issue' } },
+        { path: 'batches', component: () => import('./views/Batches.vue'), meta: { perm: 'batch:read' } },
         {
           path: 'device-requests',
           component: () => import('./views/DeviceRequests.vue'),
-          meta: { perm: 'license:issue' },
+          meta: { perm: 'license:read' },
         },
-        { path: 'customers', component: () => import('./views/EndCustomers.vue'), meta: { perm: 'end_customer:write' } },
+        { path: 'customers', component: () => import('./views/EndCustomers.vue'), meta: { perm: 'license:read' } },
         { path: 'members', component: () => import('./views/Members.vue'), meta: { perm: 'member:read' } },
         { path: 'reports', component: () => import('./views/Reports.vue'), meta: { perm: 'report:read' } },
         { path: 'audit', component: () => import('./views/AuditEvents.vue'), meta: { perm: 'audit:read' } },

@@ -12,9 +12,9 @@
         <el-menu-item-group v-if="isDeveloper" title="我的应用">
           <el-menu-item v-if="auth.can('license:read')" index="/licenses">授权码</el-menu-item>
           <el-menu-item v-if="canCatalog" index="/catalog">产品与渠道</el-menu-item>
-          <el-menu-item v-if="auth.can('license:issue')" index="/batches">批量发码</el-menu-item>
-          <el-menu-item v-if="auth.can('license:issue')" index="/device-requests">待批准设备</el-menu-item>
-          <el-menu-item v-if="auth.can('end_customer:write')" index="/customers">终端客户</el-menu-item>
+          <el-menu-item v-if="auth.can('batch:read')" index="/batches">批次与发码</el-menu-item>
+          <el-menu-item v-if="auth.can('license:read')" index="/device-requests">待批准设备</el-menu-item>
+          <el-menu-item v-if="auth.can('license:read')" index="/customers">终端客户</el-menu-item>
           <el-menu-item v-if="auth.can('member:read')" index="/members">团队成员</el-menu-item>
           <el-menu-item v-if="auth.can('report:read')" index="/reports">渠道报表</el-menu-item>
         </el-menu-item-group>
