@@ -11,9 +11,9 @@ import { fail, type NotificationChannel } from './channel';
  *
  * 关键语义(与 Webhook 投递器一致):
  *  - 状态推进只在投递结果确定后进行; 发送前绝不预写 sent
- *  - 失败按指数退避重排, 超过上限置 dead(不再无限重试)
+ *  - 失败按指数退避重排(状态 retrying + next_retry_at), 到点会被再次领取; 超过上限置 dead
  *  - 收件地址为空(许可证未绑定组织联系人)时置 blocked, 不算成功也不算失败
- *  - 单实例语义; 多副本需 FOR UPDATE SKIP LOCKED 抢占(pending 行加锁)
+ *  - 多副本安全: 领取时把 next_retry_at 推后当租约, 并发进程抢同一行时只有一个能成功
  */
 const RETRY_SCHEDULE_SEC = [60, 300, 1800, 7200, 21600];
 
@@ -38,12 +38,23 @@ export interface DeliverDeps {
 export async function deliverPending(deps: DeliverDeps, limit = 50): Promise<NotifyRunSummary> {
   const now = deps.now ?? (() => new Date());
   const cfg = getConfig();
+  const nowDate = now();
+  /**
+   * 待投递 = pending + 退避到点的 retrying。
+   *
+   * 之前只取 pending: 投递失败被置成 retrying 之后就再也没人捡回来,
+   * 所谓「指数退避重试」实际一次都不会发生, 通知会永远卡在 retrying 直到被清理。
+   * next_retry_at 为空的 retrying 是领取后进程崩溃留下的, 也要回收。
+   */
   const due = await withSystemTx(deps.db, (tx) =>
     tx
       .selectFrom('notifications_outbox')
       .selectAll()
-      .where('status', '=', 'pending')
-      .where('scheduled_for', '<=', now().toISOString().slice(0, 10))
+      .where('status', 'in', ['pending', 'retrying'])
+      .where('scheduled_for', '<=', nowDate.toISOString().slice(0, 10))
+      .where((eb) =>
+        eb.or([eb('next_retry_at', 'is', null), eb('next_retry_at', '<=', nowDate)]),
+      )
       .orderBy('created_at', 'asc')
       .limit(limit)
       .execute(),
@@ -57,13 +68,21 @@ export async function deliverPending(deps: DeliverDeps, limit = 50): Promise<Not
   };
 
   for (const row of due) {
-    // 抢占: 只有状态仍为 pending 才处理, 避免多进程重复发送
+    // 抢占: 顺手把 next_retry_at 推到 2 分钟后当租约, 并发进程抢同一行时第二个会扑空
     const claimed = await withSystemTx(deps.db, (tx) =>
       tx
         .updateTable('notifications_outbox')
-        .set({ status: `retrying` as never, retries: sql`retries` })
+        .set({
+          status: `retrying` as never,
+          retries: sql`retries`,
+          next_retry_at: sql`now() + interval '2 minutes'`,
+          updated_at: nowDate,
+        } as never)
         .where('id', '=', row.id)
-        .where('status', '=', 'pending')
+        .where('status', 'in', ['pending', 'retrying'])
+        .where((eb) =>
+          eb.or([eb('next_retry_at', 'is', null), eb('next_retry_at', '<=', nowDate)]),
+        )
         .returningAll()
         .executeTakeFirst(),
     );
@@ -168,6 +187,8 @@ async function mark(
   providerMessageId?: string | null,
   retryInSec?: number,
 ): Promise<void> {
+  // sent / dead / blocked 都是终态: 清掉退避时间, 免得被当成"待重试"再捡回来
+  const terminal = status === 'sent' || status === 'dead' || status === 'blocked';
   await withSystemTx(db, (tx) =>
     tx
       .updateTable('notifications_outbox')
@@ -177,10 +198,9 @@ async function mark(
         retries,
         last_error: lastError,
         sent_at: status === 'sent' ? now : null,
+        next_retry_at: terminal ? null : new Date(now.getTime() + (retryInSec ?? 60) * 1000),
+        updated_at: now,
         ...(providerMessageId !== undefined ? { provider_message_id: providerMessageId } : {}),
-        ...(retryInSec !== undefined
-          ? { next_retry_at: new Date(now.getTime() + retryInSec * 1000) }
-          : {}),
       } as never)
       .where('id', '=', id)
       .execute(),

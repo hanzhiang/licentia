@@ -22,6 +22,7 @@
           <el-menu-item v-if="auth.can('audit:read')" index="/audit">{{ t('nav.audit') }}</el-menu-item>
           <el-menu-item v-if="auth.can('apikey:write')" index="/apikeys">API Key</el-menu-item>
           <el-menu-item v-if="auth.can('webhook:write')" index="/webhooks">{{ t('nav.webhooks') }}</el-menu-item>
+          <el-menu-item v-if="auth.can('notify:read')" index="/notifications">{{ t('nav.notifications') }}</el-menu-item>
           <el-menu-item v-if="canSettings" index="/settings">{{ t('nav.settings') }}</el-menu-item>
         </el-menu-item-group>
       </el-menu>

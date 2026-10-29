@@ -17,6 +17,7 @@ import { DeliveryModule } from './modules/delivery/delivery.module';
 import { DeviceRequestAdminModule } from './modules/devicerequest/devicerequest.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { NotifyTemplatesModule } from './modules/notifytemplate/notify-template.module';
+import { NotificationsModule } from './modules/notification/notification.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { HealthController } from './health.controller';
 
@@ -40,6 +41,7 @@ import { HealthController } from './health.controller';
     DeviceRequestAdminModule,
     CatalogModule,
     NotifyTemplatesModule,
+    NotificationsModule,
     TenantModule,
   ],
   controllers: [HealthController],

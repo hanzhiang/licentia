@@ -32,6 +32,11 @@ const router = createRouter({
         { path: 'apikeys', component: () => import('./views/ApiKeys.vue'), meta: { perm: 'apikey:write' } },
         { path: 'webhooks', component: () => import('./views/Webhooks.vue'), meta: { perm: 'webhook:write' } },
         {
+          path: 'notifications',
+          component: () => import('./views/Notifications.vue'),
+          meta: { perm: 'notify:read' },
+        },
+        {
           path: 'settings',
           component: () => import('./views/Settings.vue'),
           // 语言设置与通知模板是两件事: 有任意一项读权限就进得来, 写操作由页面按权限禁用

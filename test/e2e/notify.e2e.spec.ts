@@ -205,6 +205,31 @@ d.sequential('notification delivery e2e', () => {
     expect(row.next_retry_at).not.toBeNull();
   });
 
+  it('picks a retrying row back up once its backoff has elapsed', async () => {
+    const id = await enqueue('expire_warning_30d', -3);
+    await deliverPending({ db, channels: { email: fakeChannel([false]) } });
+    expect((await rowOf(id)).status).toBe('retrying');
+
+    // 退避还没到点: 不应该被再次领取
+    await deliverPending({ db, channels: { email: fakeChannel([true]) } });
+    expect((await rowOf(id)).status).toBe('retrying');
+
+    // 到点后应被重新领取并成功 —— 修复前 retrying 永远不会再被处理
+    await withSystemTx(db, (tx) =>
+      tx
+        .updateTable('notifications_outbox')
+        .set({ next_retry_at: new Date(Date.now() - 1000) })
+        .where('id', '=', id)
+        .execute(),
+    );
+    const s = await deliverPending({ db, channels: { email: fakeChannel([true]) } });
+    expect(s.sent).toBeGreaterThanOrEqual(1);
+    const row = await rowOf(id);
+    expect(row.status).toBe('sent');
+    expect(row.retries).toBe(2);
+    expect(row.next_retry_at).toBeNull();
+  });
+
   it('gives up (dead) after the retry schedule is exhausted', async () => {
     const id = await enqueue('expire_warning_1d');
     // 直接在重试上限之前: schedule 长度 5, 第 5 次失败即 dead

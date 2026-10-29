@@ -63,7 +63,7 @@ Compose 只在开发机跑过，`docs/OPERATIONS.md` 里的恢复演练不是最
 
 | 项目 | 现状 | 要做什么 |
 |---|---|---|
-| 通知中心 | 有 outbox 表与投递器，无界面 | 后台列出通知状态（pending/retrying/dead/blocked），失败可重发 |
+| ~~通知中心~~ | ~~有 outbox 表与投递器，无界面~~ | 已完成：`/admin/v1/notifications` 列表 + 手动重投 + 后台「通知投递」页；同时修掉了「retrying 永远不会被重新领取」的缺陷 |
 | 席位明细 | 只有聚合数（设备指纹 HMAC 不可逆） | 新增设备→用户绑定明细，支持按用户看席位数 |
 | 报表导出 | 只有审计可导出 CSV | 报表按当前筛选导出 CSV/Excel |
 | 告警规则 | 有 `/metrics`，无告警 | Prometheus rules：投递失败率、worker 停滞、5xx 率、席位打满 |
