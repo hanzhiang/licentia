@@ -3,6 +3,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AppError } from '@lp/domain';
 import { JwtAuthGuard, currentUser } from '../../iam/guards';
+import { passwordField, refinePassword } from '../password-field';
 import { AuthService } from './auth.service';
 
 const LoginSchema = z.object({
@@ -14,12 +15,14 @@ const RefreshSchema = z.object({
   refresh_token: z.string().min(20).max(200),
 });
 
-const RegisterSchema = z.object({
-  email: z.string().email().max(200),
-  password: z.string().min(8).max(200),
-  /** 开发者/团队名称，成为租户名 */
-  developer_name: z.string().min(1).max(100),
-});
+const RegisterSchema = z
+  .object({
+    email: z.string().email().max(200),
+    password: passwordField(),
+    /** 开发者/团队名称，成为租户名 */
+    developer_name: z.string().min(1).max(100),
+  })
+  .superRefine((v, ctx) => refinePassword(v.password, ctx, { email: v.email }));
 
 const VerifyEmailSchema = z.object({
   email: z.string().email().max(200),

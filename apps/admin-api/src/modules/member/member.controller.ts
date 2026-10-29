@@ -4,19 +4,22 @@ import { z } from 'zod';
 import { AppError } from '@lp/domain';
 import { JwtAuthGuard, PermGuard, RequirePerms, requireTenantId } from '../../iam/guards';
 import { actorFrom } from '../../iam/actor';
+import { passwordField, refinePassword } from '../password-field';
 import { MEMBER_ROLES, MemberService, type MemberRole } from './member.service';
 
-const CreateSchema = z.object({
-  email: z.string().email().max(200),
-  password: z.string().min(8).max(200),
-  role: z.enum(MEMBER_ROLES),
-  /** 仅渠道角色(developer_partner)需要, 且必须是本租户的渠道 */
-  channel_id: z.string().uuid().nullish(),
-});
+const CreateSchema = z
+  .object({
+    email: z.string().email().max(200),
+    password: passwordField(),
+    role: z.enum(MEMBER_ROLES),
+    /** 仅渠道角色(developer_partner)需要, 且必须是本租户的渠道 */
+    channel_id: z.string().uuid().nullish(),
+  })
+  .superRefine((v, ctx) => refinePassword(v.password, ctx, { email: v.email }));
 
-const ResetPasswordSchema = z.object({
-  password: z.string().min(8).max(200),
-});
+const ResetPasswordSchema = z
+  .object({ password: passwordField() })
+  .superRefine((v, ctx) => refinePassword(v.password, ctx));
 
 const UpdateSchema = z.object({
   role: z.enum(MEMBER_ROLES).optional(),

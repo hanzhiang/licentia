@@ -90,7 +90,12 @@ onBeforeUnmount(() => {
 
 async function submit(): Promise<void> {
   if (!form.developerName.trim()) return ElMessage.error(t('register.needDevName'));
-  if (form.password.length < 8) return ElMessage.error(t('register.needPwdLen'));
+  if (form.password.length < 10) return ElMessage.error(t('register.needPwdLen'));
+  // 与服务端策略一致(真正判定仍在后端): 大写/小写/数字/符号至少三类
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter((re) =>
+    re.test(form.password),
+  ).length;
+  if (classes < 3) return ElMessage.error(t('register.pwdWeak'));
   if (form.password !== form.confirm) return ElMessage.error(t('register.pwdMismatch'));
 
   loading.value = true;

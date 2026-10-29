@@ -411,6 +411,9 @@ pnpm backup:restore -- --dir ./data/backups/prod-20261028 `
 ## 7. 上线安全清单
 
 - 修改所有种子账号密码；删除不需要的演示账号。
+- 密码策略已内置：新设密码 ≥10 位、大小写/数字/符号至少三类、拦截常见弱口令（含 `P@ssw0rd`、
+  `Password123` 这类变体）、不得包含邮箱账号名、不得有连续 4 个相同字符。
+  只约束**新设**密码（注册 / 创建成员 / 重置密码）；登录不套此规则，避免存量账号被挡在门外。
 - 用 Vault 或 KMS 托管 JWT 和离线签名私钥。
 - 设置新的 `CODE_HMAC_KEY`、`FINGERPRINT_PEPPER`、`CODE_ENC_KEY`、
   `WEBHOOK_ENC_KEY`、`NOTIFY_ADDR_ENC_KEY`。
