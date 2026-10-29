@@ -53,6 +53,11 @@ const EnvSchema = z.object({
   SMTP_TLS_MODE: z.enum(['starttls', 'implicit']).default('starttls'),
   SMS_GATEWAY_URL: z.string().url().nullish(),
   SMS_GATEWAY_TOKEN: z.string().nullish(),
+  /**
+   * /metrics 抓取令牌. 配置后必须带 Authorization: Bearer <token>;
+   * 生产环境不配则端点直接 404, 不对外泄露请求量.
+   */
+  METRICS_TOKEN: z.string().default(''),
 
   // Vault(签名适配器 + 生产密钥托管, 设计文档 §10.1)
   VAULT_ADDR: z.string().default('http://localhost:8200'),

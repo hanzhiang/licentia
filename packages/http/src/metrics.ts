@@ -5,7 +5,10 @@
  * 错误率和路由级延迟。这里用 Fastify 钩子聚合, 暴露文本格式供抓取。
  *
  * 只按 (method, route, status) 计数, 不记录请求体或用户标识。
+ * 抓取端点本身受 METRICS_TOKEN 保护(见 metricsAccess)。
  */
+import { createHash, timingSafeEqual } from 'node:crypto';
+
 interface Series {
   count: number;
   sumMs: number;
@@ -76,6 +79,7 @@ interface FastifyLike {
 interface ReqLike {
   method?: string;
   url?: string;
+  headers?: Record<string, string | string[] | undefined>;
   routerPath?: string;
   routeOptions?: { url?: string };
   _lpStart?: number;
@@ -83,8 +87,38 @@ interface ReqLike {
 
 interface ReplyLike {
   statusCode?: number;
+  headers?: Record<string, string>;
+  code?: (n: number) => ReplyLike;
+  header?: (name: string, value: string) => ReplyLike;
   type?: (t: string) => ReplyLike;
   send?: (body: string) => void;
+}
+
+function headerValue(req: ReqLike, name: string): string | undefined {
+  const raw = req.headers?.[name];
+  return typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] : undefined;
+}
+
+/** 定长比较, 避免用 === 直接比密钥带来的时序差异 */
+function sameSecret(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
+/**
+ * /metrics 的访问控制:
+ *  - 配置了 METRICS_TOKEN: 必须带 Authorization: Bearer <token>
+ *  - 未配置且 NODE_ENV=prod: 端点直接不存在(404), 不对外暴露请求量
+ *  - 未配置且非生产: 开放, 方便本机 curl
+ */
+export function metricsAccess(req: ReqLike): 'ok' | 'unauthorized' | 'hidden' {
+  const token = process.env.METRICS_TOKEN ?? '';
+  if (!token) return process.env.NODE_ENV === 'prod' ? 'hidden' : 'ok';
+  const header = headerValue(req, 'authorization') ?? '';
+  const prefix = 'Bearer ';
+  if (!header.startsWith(prefix)) return 'unauthorized';
+  return sameSecret(header.slice(prefix.length).trim(), token) ? 'ok' : 'unauthorized';
 }
 
 /**
@@ -107,7 +141,21 @@ export function installMetrics(app: FastifyLike): void {
     );
     done();
   });
-  app.get('/metrics', (_req, reply) => {
+  app.get('/metrics', (req, reply) => {
+    const access = metricsAccess(req);
+    if (access === 'hidden') {
+      reply.code?.(404);
+      reply.type?.('application/json');
+      reply.send?.(JSON.stringify({ error: 'not found' }));
+      return;
+    }
+    if (access === 'unauthorized') {
+      reply.code?.(401);
+      reply.header?.('www-authenticate', 'Bearer');
+      reply.type?.('application/json');
+      reply.send?.(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
     reply.type?.('text/plain; version=0.0.4');
     reply.send?.(renderMetrics());
   });

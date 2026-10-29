@@ -417,6 +417,9 @@ pnpm backup:restore -- --dir ./data/backups/prod-20261028 `
 - 数据库使用最小权限应用账号，RLS 必须保持启用。
 - 全站 HTTPS；反向代理限制请求体大小、登录频率和 API Key QPS。
 - 配置真实 SMTP/SMS 网关；生产环境不要启用控制台通知兜底。
+- 设置 `METRICS_TOKEN`：`/metrics` 会要求 `Authorization: Bearer <token>`；
+  生产环境不配则该端点直接 404（不对外泄露请求量）。worker 的 `/healthz` 与 `/metrics`
+  在同一端口上遵循同样规则。
 - 定期执行 `pnpm backup:drill`，并把加密备份复制到异机房。
 - 开启磁盘、数据库连接、审计链断裂、Webhook 死信和通知 dead 告警。
 - 定期轮换 JWT 签名钥、离线许可 kid 和 API Key。

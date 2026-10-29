@@ -62,6 +62,20 @@ export function startHealthServer(
     }
 
     if (req.url === '/metrics') {
+      // 与 HTTP 服务同一套规则: 配了 token 才对外, 生产环境没配 token 直接不暴露
+      const token = process.env.METRICS_TOKEN ?? '';
+      if (token) {
+        const auth = req.headers['authorization'] ?? '';
+        if (auth !== `Bearer ${token}`) {
+          res.writeHead(401, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ error: 'unauthorized' }));
+          return;
+        }
+      } else if (process.env.NODE_ENV === 'prod') {
+        res.writeHead(404, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: 'not found' }));
+        return;
+      }
       const lines = [
         '# HELP lp_worker_ticks_total 完成的 tick 次数',
         '# TYPE lp_worker_ticks_total counter',
