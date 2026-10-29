@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Kysely, sql } from 'kysely';
 import { LpDb, withSystemTx } from '@lp/db';
 import { decryptAead } from '@lp/keygen';
-import { getConfig } from '@lp/config';
+import {  getConfig, log } from '@lp/config';
 import { recordFailureAndMaybeTrip, recordSuccess } from './breaker';
 
 /**
@@ -125,7 +125,7 @@ async function deliverOne(
   if (success) {
     await recordSuccess(db, d.endpoint_id);
   } else {
-    console.warn(
+    log.warn(
       `[webhook] delivery ${d.id} attempt=${attempt} ${dead ? 'DEAD' : 'retry'} ${error}`,
     );
     // 熔断判定放在投递状态落库之后: 本次失败已计入窗口统计

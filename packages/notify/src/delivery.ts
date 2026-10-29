@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Kysely, sql } from 'kysely';
 import { LpDb, withSystemTx } from '@lp/db';
 import { decryptAead } from '@lp/keygen';
-import { getConfig } from '@lp/config';
+import {  getConfig, log } from '@lp/config';
 import { renderTemplate } from './templates';
 import { fail, type NotificationChannel } from './channel';
 
@@ -119,7 +119,7 @@ export async function deliverPending(deps: DeliverDeps, limit = 50): Promise<Not
     );
     if (dead) summary.dead++;
     else summary.retrying++;
-    console.warn(
+    log.warn(
       `[notify] ${claimed.id} attempt=${attempt} ${dead ? 'DEAD' : 'retry'} ${result.error}`,
     );
   }

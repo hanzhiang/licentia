@@ -1,4 +1,5 @@
 import { Kysely } from 'kysely';
+import { log } from '@lp/config';
 import { LpDb, withSystemTx } from '@lp/db';
 import { reviveExpired } from './breaker';
 
@@ -21,7 +22,7 @@ export async function relayOnce(db: Kysely<LpDb>): Promise<number> {
       .execute();
 
     for (const ev of rows) {
-      console.log(
+      log.info(
         `[outbox] publish ${ev.type} tenant=${ev.tenant_id ?? '-'} agg=${ev.aggregate_type}/${ev.aggregate_id}`,
       );
       if (ev.tenant_id === null) continue; // 平台级事件不投租户 webhook

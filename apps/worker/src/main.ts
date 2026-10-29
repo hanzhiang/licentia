@@ -1,7 +1,8 @@
 import { sql } from 'kysely';
 import { createDb, withSystemTx } from '@lp/db';
 import { emitOutbox } from '@lp/events';
-import { getConfig } from '@lp/config';
+import {   getConfig, log, setServiceName } from '@lp/config';
+setServiceName('worker');
 import { buildChannels, deliverPending } from '@lp/notify';
 import { relayOnce } from './relay';
 import { dispatchOnce } from './dispatcher';
@@ -26,7 +27,7 @@ const health = createHealthState();
 let stopped = false;
 
 if (!channels.email) {
-  console.warn('[worker] 未配置 SMTP 且关闭了 console fallback: 邮件通知将置 blocked');
+  log.warn('[worker] 未配置 SMTP 且关闭了 console fallback: 邮件通知将置 blocked');
 }
 
 async function expireActivated(): Promise<void> {
@@ -46,7 +47,7 @@ async function expireActivated(): Promise<void> {
     }
     return rows.length;
   });
-  if (n > 0) console.log(`[expire-scanner] ${n} license(s) -> expired`);
+  if (n > 0) log.info(`[expire-scanner] ${n} license(s) -> expired`);
 }
 
 async function expireUnactivated(): Promise<void> {
@@ -67,7 +68,7 @@ async function expireUnactivated(): Promise<void> {
     }
     return rows.length;
   });
-  if (n > 0) console.log(`[expire-scanner] ${n} unactivated license(s) -> expired`);
+  if (n > 0) log.info(`[expire-scanner] ${n} unactivated license(s) -> expired`);
 }
 
 let lastRetentionAt = 0;
@@ -83,7 +84,7 @@ async function tick(): Promise<void> {
     const notified = await notifyOnce(db);
     const d = await deliverPending({ db, channels });
     if (d.processed > 0) {
-      console.log(
+      log.info(
         `[notify] processed=${d.processed} sent=${d.sent} retrying=${d.retrying} dead=${d.dead} blocked=${d.blocked}`,
       );
     }
@@ -107,13 +108,13 @@ async function tick(): Promise<void> {
     // 失败也要记时间: 否则探活会把"一直在报错"显示成"一切正常"
     health.lastError = (e as Error).message;
     health.lastTickMs = Date.now() - startedAt;
-    console.error('[worker] tick failed:', (e as Error).message);
+    log.error('[worker] tick failed:', (e as Error).message);
   }
 }
 
 async function main(): Promise<void> {
   const cfg = getConfig();
-  console.log(`[worker] started db=${cfg.DATABASE_URL.replace(/:[^:@/]+@/, ':***@')}`);
+  log.info(`started db=${cfg.DATABASE_URL.replace(/:[^:@/]+@/, ':***@')}`);
   await tick();
   const timer = setInterval(() => void tick(), 5000);
   const shutdown = (): void => {

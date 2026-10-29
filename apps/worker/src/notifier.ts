@@ -1,4 +1,5 @@
 import { sql, Kysely } from 'kysely';
+import { log } from '@lp/config';
 import { LpDb, uuidv7, withSystemTx } from '@lp/db';
 import { emitOutbox } from '@lp/events';
 
@@ -68,6 +69,6 @@ export async function notifyOnce(db: Kysely<LpDb>): Promise<number> {
       }
     });
   }
-  if (total > 0) console.log(`[notifier] ${total} expire warning(s) queued`);
+  if (total > 0) log.info(`[notifier] ${total} expire warning(s) queued`);
   return total;
 }

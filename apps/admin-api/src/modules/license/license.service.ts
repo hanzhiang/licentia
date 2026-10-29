@@ -1,4 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import { log } from '@lp/config';
 import { Kysely, sql } from 'kysely';
 import {
   assertTransition,
@@ -297,7 +298,7 @@ export class LicenseService {
               code_hmac: Buffer.from(data.code_hmac).toString('base64url'),
             });
           } catch (e) {
-            console.warn(
+            log.warn(
               '[revoke] cache invalidation publish failed (TTL 兜底):',
               (e as Error).message,
             );

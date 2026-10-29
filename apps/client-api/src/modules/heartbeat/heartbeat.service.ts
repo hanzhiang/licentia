@@ -6,7 +6,7 @@ import { LpDb, setBypassRls, setTenantGuc, withSystemTx } from '@lp/db';
 import { generateClientToken, hashClientToken } from '@lp/auth';
 import type { Redis } from '@lp/cache';
 import type { LicenseSigner } from '@lp/signer';
-import { getConfig, type AppConfig } from '@lp/config';
+import {  getConfig, type AppConfig, log } from '@lp/config';
 import { DB } from '../../db.module';
 import { REDIS } from '../../redis.module';
 import { SIGNER } from '../../signer.module';
@@ -149,7 +149,7 @@ export class HeartbeatService {
         } catch (e) {
           // 限额必须真的拒绝; 仅 Redis 自身故障时降级放行(否则抖一下会踢掉所有客户端)
           if (e instanceof AppError) throw e;
-          console.warn('[heartbeat] 席位/并发计数不可用:', (e as Error).message);
+          log.warn('[heartbeat] 席位/并发计数不可用:', (e as Error).message);
         }
       }
 

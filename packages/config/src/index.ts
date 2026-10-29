@@ -1,3 +1,4 @@
+export { log, setServiceName, type LogLevel } from './logger';
 import { z } from 'zod';
 import fs from 'node:fs';
 

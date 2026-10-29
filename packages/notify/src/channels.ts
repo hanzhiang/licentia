@@ -1,4 +1,5 @@
 import net from 'node:net';
+import { log } from '@lp/config';
 import tls from 'node:tls';
 import type { NotificationChannel, DeliveryResult } from './channel';
 import { ok, fail } from './channel';
@@ -228,7 +229,7 @@ export class ConsoleChannel implements NotificationChannel {
   }
 
   async send(target: { to: string }, message: RenderedMessage): Promise<DeliveryResult> {
-    console.log(
+    log.info(
       `[notify:${this.name}] to=${target.to} subject=${JSON.stringify(message.subject)} ` +
         `text=${JSON.stringify(message.text.slice(0, 200))}`,
     );

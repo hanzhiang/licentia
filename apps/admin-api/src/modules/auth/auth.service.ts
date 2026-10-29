@@ -5,7 +5,7 @@ import { AppError } from '@lp/domain';
 import { uuidv7, withSystemTx, type LpDb } from '@lp/db';
 import { hashPassword, signJwt, verifyPassword } from '@lp/auth';
 import { writeAudit } from '@lp/audit';
-import { getConfig } from '@lp/config';
+import {  getConfig, log } from '@lp/config';
 import { buildChannels } from '@lp/notify';
 import type { Redis } from '@lp/cache';
 import { DB } from '../../db.module';
@@ -126,7 +126,7 @@ export class AuthService {
         }
         return;
       } catch (e) {
-        console.warn('[auth] Redis 限流不可用, 降级为进程内计数:', (e as Error).message);
+        log.warn('[auth] Redis 限流不可用, 降级为进程内计数:', (e as Error).message);
       }
     }
     const l = this.localLocks.get(email) ?? { fails: 0, until: 0 };
@@ -435,7 +435,7 @@ export class AuthService {
         return;
       } catch (e) {
         if (e instanceof AppError) throw e;
-        console.warn('[auth] Redis 注册限流不可用, 降级为进程内计数:', (e as Error).message);
+        log.warn('[auth] Redis 注册限流不可用, 降级为进程内计数:', (e as Error).message);
       }
     }
     const now = Date.now();
@@ -475,7 +475,7 @@ export class AuthService {
         )
         .catch(() => undefined);
     } else {
-      console.warn(`[auth] 未配置邮件通道, 验证码未发送: ${email}`);
+      log.warn(`[auth] 未配置邮件通道, 验证码未发送: ${email}`);
     }
     return code;
   }

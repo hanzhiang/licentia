@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { log } from '@lp/config';
 
 /**
  * worker 健康端点(设计文档 §16 运维).
@@ -85,7 +86,7 @@ export function startHealthServer(
   });
 
   server.listen(port, '0.0.0.0', () => {
-    console.log(`[worker] health on :${port} (/healthz, /metrics)`);
+    log.info(`[worker] health on :${port} (/healthz, /metrics)`);
   });
 
   // 关停时先停监听，避免探活继续打到即将退出的进程

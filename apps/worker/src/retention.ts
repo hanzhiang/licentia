@@ -1,4 +1,5 @@
 import { Kysely, sql, type RawBuilder } from 'kysely';
+import { log } from '@lp/config';
 import { LpDb, withSystemTx } from '@lp/db';
 
 /**
@@ -135,7 +136,7 @@ export async function runRetentionOnce(
     };
     const total = Object.values(summary).reduce((a, b) => a + b, 0);
     if (total > 0) {
-      console.log(
+      log.info(
         `[retention] cleaned idem=${idempotency} ct=${clientTokens} rt=${refreshTokens} ` +
           `notif=${notifications} webhook=${webhookDeliveries} events=${events} deliveries=${deliveries}`,
       );

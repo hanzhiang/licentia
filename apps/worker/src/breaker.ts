@@ -1,4 +1,5 @@
 import { Kysely, sql } from 'kysely';
+import { log } from '@lp/config';
 import { LpDb, withSystemTx } from '@lp/db';
 
 /**
@@ -113,7 +114,7 @@ export async function recordFailureAndMaybeTrip(
       .where('status', '=', 'active')
       .execute(),
   );
-  console.warn(
+  log.warn(
     `[webhook] endpoint ${endpointId} 熔断 ${Math.round(verdict.cooldownMs / 1000)}s ` +
       `(窗口 ${stats.failures}/${stats.samples} 失败, ${(stats.failureRate * 100).toFixed(0)}%)`,
   );
@@ -152,7 +153,7 @@ export async function reviveExpired(
       .execute(),
   );
   if (rows.length > 0) {
-    console.log(`[webhook] ${rows.length} 个端点冷却结束, 恢复投递`);
+    log.info(`[webhook] ${rows.length} 个端点冷却结束, 恢复投递`);
   }
   return rows.length;
 }
